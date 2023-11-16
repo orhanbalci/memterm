@@ -1,0 +1,22 @@
+
+layout {
+    pane size=1 borderless=true {
+        plugin location="zellij:compact-bar"
+    }
+    pane{
+        pane  size="75%" borderless=true{
+            command "helix"
+            args "README.md"
+        }
+        pane split_direction="vertical" {
+            pane borderless=true{
+                command "cargo" 
+                args "build"
+            }
+            pane borderless=true
+        }
+        pane size=2 borderless=true borderless=true{
+            plugin location="zellij:status-bar"
+        }
+    }
+}

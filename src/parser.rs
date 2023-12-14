@@ -1,11 +1,11 @@
-use crate::ascii;
-use crate::parser_listener::ParserListener;
 use ansi_control_codes::c0::ESC;
-use ansi_control_codes::c1::CSI;
-use ansi_control_codes::c1::OSC;
+use ansi_control_codes::c1::{CSI, NEL, OSC, RI};
 use ansi_control_codes::independent_control_functions::RIS;
 use genawaiter::sync::gen;
 use genawaiter::yield_;
+
+use crate::ascii;
+use crate::parser_listener::ParserListener;
 
 pub const DECALN: &'static str = ascii!(3 / 8);
 pub const IND: &'static str = ascii!(4 / 4);
@@ -67,12 +67,20 @@ impl<T: ParserListener> Parser<T> {
     fn escape_dispatch(&self, escape_command: &str) {
         let ris_code = &RIS.to_string();
         let ind_code = &IND.to_string();
+        let nel_code = &NEL.to_string();
+        let ri_code = &RI.to_string();
         match escape_command {
             ec if ec == ris_code => {
                 self.listener.reset();
             }
             ec if ec == ind_code => {
                 self.listener.index();
+            }
+            ec if ec == nel_code => {
+                self.listener.linefeed();
+            }
+            ec if ec == ri_code => {
+                self.listener.reverse_index();
             }
             _ => {
                 println!("un expected escape code")

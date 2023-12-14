@@ -3,4 +3,6 @@ pub trait ParserListener {
     fn define_charset(&self, code: &str, mode: &str);
     fn reset(&self);
     fn index(&self);
+    fn linefeed(&self);
+    fn reverse_index(&self);
 }

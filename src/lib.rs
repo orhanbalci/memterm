@@ -12,8 +12,9 @@ pub mod parser_listener;
 
 #[cfg(test)]
 mod test {
-    use crate::charset;
     use ansi_control_codes::c0::ESC;
+
+    use crate::charset;
 
     #[test]
     fn write_vt_100_chars() {

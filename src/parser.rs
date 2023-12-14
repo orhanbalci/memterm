@@ -14,6 +14,10 @@ pub struct Parser<T: ParserListener> {
 }
 
 impl<T: ParserListener> Parser<T> {
+    pub fn new(listener: T, use_utf8: bool) -> Self {
+        Parser { listener, use_utf8 }
+    }
+
     pub fn start(&self) {
         let mut printer = gen!({
             loop {

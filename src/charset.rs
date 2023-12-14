@@ -1,5 +1,5 @@
 const N: usize = 256;
-const VT_100_CHARS: [u32; N] = [
+const VT100_CHARS: [u32; N] = [
     0x0000u32, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a,
     0x000b, 0x000c, 0x000d, 0x000e, 0x000f, 0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016,
     0x0017, 0x0018, 0x0019, 0x001a, 0x001b, 0x001c, 0x001d, 0x001e, 0x001f, 0x0020, 0x0021, 0x0022,
@@ -79,7 +79,7 @@ const fn convert_to_char(input: [u32; N]) -> [char; N] {
     let mut res = ['a'; N];
     let mut i = 0;
     while i < input.len() {
-        res[i] = match char::from_u32(VT_100_CHARS[i]) {
+        res[i] = match char::from_u32(input[i]) {
             Some(a) => a,
             None => panic!("failed to convert to ascii char"),
         };
@@ -87,6 +87,19 @@ const fn convert_to_char(input: [u32; N]) -> [char; N] {
     }
     res
 }
-pub const VT_100_MAP: [char; N] = convert_to_char(VT_100_CHARS);
+
+pub const VT100_MAP: [char; N] = convert_to_char(VT100_CHARS);
 pub const IBMPC_MAP: [char; N] = convert_to_char(IBMPC_CHARS);
 pub const VAX42_MAP: [char; N] = convert_to_char(VAX42_CHARS);
+pub const LAT1_MAP: [char; N] = {
+    let mut a = ['a'; N];
+    let mut i = 0;
+    while i < N {
+        a[i] = match char::from_u32(i as u32) {
+            Some(a) => a,
+            None => panic!("failed to convert to ascii char"),
+        };
+        i += 1;
+    }
+    a
+};

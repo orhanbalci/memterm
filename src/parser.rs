@@ -3,10 +3,12 @@ use crate::parser_listener::ParserListener;
 use ansi_control_codes::c0::ESC;
 use ansi_control_codes::c1::CSI;
 use ansi_control_codes::c1::OSC;
+use ansi_control_codes::independent_control_functions::RIS;
 use genawaiter::sync::gen;
 use genawaiter::yield_;
 
 pub const DECALN: &'static str = ascii!(3 / 8);
+pub const IND: &'static str = ascii!(4 / 4);
 
 pub struct Parser<T: ParserListener> {
     listener: T,
@@ -32,7 +34,7 @@ impl<T: ParserListener> Parser<T> {
                 } else {
                     if char == "#" {
                         // sharp dispatch
-                        if yield_!(None) == DECALN.to_string() {
+                        if yield_!(None) == DECALN {
                             self.listener.alignment_display();
                         } else {
                             println!("unexpected escape character");
@@ -46,7 +48,11 @@ impl<T: ParserListener> Parser<T> {
                         } else {
                             self.listener.define_charset(code, char);
                         }
+                    } else {
+                        //escape dispatch
+                        self.escape_dispatch(char);
                     }
+                    continue;
                 }
                 // println!("{}", char);
             }
@@ -57,4 +63,20 @@ impl<T: ParserListener> Parser<T> {
     }
 
     fn select_other_charset(&self, input: &str) {}
+
+    fn escape_dispatch(&self, escape_command: &str) {
+        let ris_code = &RIS.to_string();
+        let ind_code = &IND.to_string();
+        match escape_command {
+            ec if ec == ris_code => {
+                self.listener.reset();
+            }
+            ec if ec == ind_code => {
+                self.listener.index();
+            }
+            _ => {
+                println!("un expected escape code")
+            }
+        }
+    }
 }

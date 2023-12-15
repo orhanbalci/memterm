@@ -1,5 +1,5 @@
 use ansi_control_codes::c0::ESC;
-use ansi_control_codes::c1::{CSI, NEL, OSC, RI};
+use ansi_control_codes::c1::{CSI, HTS, NEL, OSC, RI};
 use ansi_control_codes::independent_control_functions::RIS;
 use genawaiter::sync::gen;
 use genawaiter::yield_;
@@ -9,6 +9,8 @@ use crate::parser_listener::ParserListener;
 
 pub const DECALN: &'static str = ascii!(3 / 8);
 pub const IND: &'static str = ascii!(4 / 4);
+pub const DECSC: &'static str = ascii!(3 / 7);
+pub const DECRC: &'static str = ascii!(3 / 8);
 
 pub struct Parser<T: ParserListener> {
     listener: T,
@@ -69,6 +71,8 @@ impl<T: ParserListener> Parser<T> {
         let ind_code = &IND.to_string();
         let nel_code = &NEL.to_string();
         let ri_code = &RI.to_string();
+        let hts_code = &HTS.to_string();
+
         match escape_command {
             ec if ec == ris_code => {
                 self.listener.reset();
@@ -81,6 +85,15 @@ impl<T: ParserListener> Parser<T> {
             }
             ec if ec == ri_code => {
                 self.listener.reverse_index();
+            }
+            ec if ec == hts_code => {
+                self.listener.set_tab_stop();
+            }
+            ec if ec == DECSC => {
+                self.listener.save_cursor();
+            }
+            ec if ec == DECRC => {
+                self.listener.restore_cursor();
             }
             _ => {
                 println!("un expected escape code")

@@ -1,6 +1,7 @@
-use ansi_control_codes::c0::ESC;
+use ansi_control_codes::c0::{BEL, BS, CR, ESC, FF, HT, LF, SI, SO, VT};
 use ansi_control_codes::c1::{CSI, HTS, NEL, OSC, RI};
 use ansi_control_codes::independent_control_functions::RIS;
+use ansi_control_codes::ControlFunction;
 use genawaiter::sync::gen;
 use genawaiter::yield_;
 
@@ -11,6 +12,8 @@ pub const DECALN: &'static str = ascii!(3 / 8);
 pub const IND: &'static str = ascii!(4 / 4);
 pub const DECSC: &'static str = ascii!(3 / 7);
 pub const DECRC: &'static str = ascii!(3 / 8);
+
+pub const BASIC: &'static [ControlFunction; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
 
 pub struct Parser<T: ParserListener> {
     listener: T,
@@ -23,42 +26,48 @@ impl<T: ParserListener> Parser<T> {
     }
 
     pub fn start(&self) {
-        let mut printer = gen!({
+        let csi_code = &CSI.to_string();
+        let osc_code = &OSC.to_string();
+        let mut printer = ::genawaiter::sync::Gen::new(::genawaiter::sync_producer!({
             loop {
                 let mut char: &str = yield_!(Some(true));
                 if ESC.to_string() == char {
                     char = yield_!(None);
                     if char == "[" {
-                        char = &CSI.to_string();
+                        char = csi_code;
                     } else if char == "]" {
-                        char = &OSC.to_string();
-                    }
-                } else {
-                    if char == "#" {
-                        // sharp dispatch
-                        if yield_!(None) == DECALN {
-                            self.listener.alignment_display();
-                        } else {
-                            println!("unexpected escape character");
-                        }
-                    } else if char == "%" {
-                        self.select_other_charset(yield_!(None));
-                    } else if "()".contains(char) {
-                        let code = yield_!(None);
-                        if self.use_utf8 {
-                            continue;
-                        } else {
-                            self.listener.define_charset(code, char);
-                        }
+                        char = osc_code;
                     } else {
-                        //escape dispatch
-                        self.escape_dispatch(char);
+                        if char == "#" {
+                            if yield_!(None) == DECALN {
+                                self.listener.alignment_display();
+                            } else {
+                                println!("unexpected escape character");
+                            }
+                        } else if char == "%" {
+                            self.select_other_charset(yield_!(None));
+                        } else if "()".contains(char) {
+                            let code = yield_!(None);
+                            if self.use_utf8 {
+                                continue;
+                            } else {
+                                self.listener.define_charset(code, char);
+                            }
+                        } else {
+                            self.escape_dispatch(char);
+                        }
+                        continue;
                     }
-                    continue;
                 }
-                // println!("{}", char);
+                if BASIC.iter().any(|cf| cf.to_string() == char) {
+                    if char == SI.to_string() || char == SO.to_string() {
+                        continue;
+                    } else {
+                        self.basic_dispatch(char);
+                    }
+                }
             }
-        });
+        }));
 
         printer.resume_with("h");
         printer.resume_with("w");
@@ -100,4 +109,6 @@ impl<T: ParserListener> Parser<T> {
             }
         }
     }
+
+    fn basic_dispatch(&self, basic_command: &str) {}
 }

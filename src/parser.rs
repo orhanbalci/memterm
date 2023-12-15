@@ -110,5 +110,34 @@ impl<T: ParserListener> Parser<T> {
         }
     }
 
-    fn basic_dispatch(&self, basic_command: &str) {}
+    fn basic_dispatch(&self, basic_command: &str) {
+        let bel_code = &BEL.to_string();
+        let bs_code = &BS.to_string();
+        let ht_code = &HT.to_string();
+        let lf_code = &LF.to_string();
+        let vt_code = &VT.to_string();
+        let ff_code = &FF.to_string();
+        let cr_code = &CR.to_string();
+
+        match basic_command {
+            ec if ec == bel_code => {
+                self.listener.bell();
+            }
+            ec if ec == bs_code => {
+                self.listener.backspace();
+            }
+            ec if ec == ht_code => {
+                self.listener.tab();
+            }
+            ec if (ec == lf_code || ec == vt_code || ec == ff_code) => {
+                self.listener.linefeed();
+            }
+            ec if ec == cr_code => {
+                self.listener.cariage_return();
+            }
+            _ => {
+                println!("un expected escape code")
+            }
+        }
+    }
 }

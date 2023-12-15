@@ -8,4 +8,10 @@ pub trait ParserListener {
     fn set_tab_stop(&self);
     fn save_cursor(&self);
     fn restore_cursor(&self);
+
+    // basic esvape code actions
+    fn bell(&self);
+    fn backspace(&self);
+    fn tab(&self);
+    fn cariage_return(&self);
 }

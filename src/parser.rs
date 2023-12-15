@@ -1,4 +1,4 @@
-use ansi_control_codes::c0::{BEL, BS, CR, ESC, FF, HT, LF, SI, SO, VT};
+use ansi_control_codes::c0::{BEL, BS, CAN, CR, ESC, FF, HT, LF, SI, SO, SUB, VT};
 use ansi_control_codes::c1::{CSI, HTS, NEL, OSC, RI};
 use ansi_control_codes::independent_control_functions::RIS;
 use ansi_control_codes::ControlFunction;
@@ -12,8 +12,11 @@ pub const DECALN: &'static str = ascii!(3 / 8);
 pub const IND: &'static str = ascii!(4 / 4);
 pub const DECSC: &'static str = ascii!(3 / 7);
 pub const DECRC: &'static str = ascii!(3 / 8);
+pub const SP: &'static str = ascii!(2 / 0);
+pub const GREATER: &'static str = ascii!(3 / 14);
 
 pub const BASIC: &'static [ControlFunction; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
+pub const ALLOWED_IN_CSI: &'static [ControlFunction; 7] = &[BEL, BS, HT, LF, VT, FF, CR];
 
 pub struct Parser<T: ParserListener> {
     listener: T,
@@ -64,6 +67,20 @@ impl<T: ParserListener> Parser<T> {
                         continue;
                     } else {
                         self.basic_dispatch(char);
+                    }
+                } else if char == CSI.to_string() {
+                    let mut params: Vec<String> = vec![];
+                    let mut private: bool = false;
+                    let mut current: String = "".to_owned();
+                    loop {
+                        char = yield_!(None);
+                        if char == "?" {
+                            private = true;
+                        } else if ALLOWED_IN_CSI.iter().any(|cf| cf.to_string() == char) {
+                            self.basic_dispatch(char);
+                        } else if char == SP.to_string() || char == GREATER.to_string() {
+                        } else if char == CAN.to_string() || char == SUB.to_string() {
+                        }
                     }
                 }
             }

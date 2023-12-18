@@ -62,24 +62,47 @@ impl<T: ParserListener> Parser<T> {
                         continue;
                     }
                 }
-                if BASIC.iter().any(|cf| cf.to_string() == char) {
+                if BASIC.iter().any(|cf| *cf == char) {
                     if char == SI.to_string() || char == SO.to_string() {
                         continue;
                     } else {
                         self.basic_dispatch(char);
                     }
                 } else if char == CSI.to_string() {
-                    let mut params: Vec<String> = vec![];
+                    let mut params: Vec<u32> = vec![];
                     let mut private: bool = false;
                     let mut current: String = "".to_owned();
                     loop {
                         char = yield_!(None);
                         if char == "?" {
                             private = true;
-                        } else if ALLOWED_IN_CSI.iter().any(|cf| cf.to_string() == char) {
+                        } else if ALLOWED_IN_CSI.iter().any(|cf| *cf == char) {
                             self.basic_dispatch(char);
                         } else if char == SP.to_string() || char == GREATER.to_string() {
                         } else if char == CAN.to_string() || char == SUB.to_string() {
+                            self.listener.draw(char);
+                            break;
+                        } else if char.chars().nth(0).unwrap().is_digit(10) {
+                            current.push(char.chars().nth(0).unwrap());
+                        } else if (char == "$") {
+                            yield_!(None);
+                            break;
+                        } else {
+                            let mut current_param = match current.parse::<u32>() {
+                                Ok(val) => val,
+                                _ => 0,
+                            };
+                            current_param = u32::min(current_param, 9999);
+                            params.push(current_param);
+                            if char == ";" {
+                                current = "".to_owned();
+                            } else {
+                                if private {
+                                    self.csi_dispatch(char, &params[..], true);
+                                } else {
+                                    self.csi_dispatch(char, &params[..], false);
+                                }
+                            }
                         }
                     }
                 }
@@ -157,4 +180,6 @@ impl<T: ParserListener> Parser<T> {
             }
         }
     }
+
+    fn csi_dispatch(&self, csi_command: &str, params: &[u32], is_private: bool) {}
 }

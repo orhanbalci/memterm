@@ -14,4 +14,6 @@ pub trait ParserListener {
     fn backspace(&self);
     fn tab(&self);
     fn cariage_return(&self);
+
+    fn draw(&self, input: &str);
 }

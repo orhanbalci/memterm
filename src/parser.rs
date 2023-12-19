@@ -1,6 +1,6 @@
 use ansi_control_codes::c0::{BEL, BS, CAN, CR, ESC, FF, HT, LF, SI, SO, SUB, VT};
 use ansi_control_codes::c1::{CSI, HTS, NEL, OSC, RI}; // TODO direct string comparison for this codes does not work. You should match whole code viwth ESC
-use ansi_control_codes::control_sequences::ICH; // TODO direct string comparison does not work
+use ansi_control_codes::control_sequences::{CUD, CUU, ICH}; // TODO direct string comparison does not work
 use ansi_control_codes::independent_control_functions::RIS; //TODO direct string comparison does not work
 use ansi_control_codes::ControlFunction;
 use genawaiter::yield_;
@@ -184,14 +184,26 @@ impl<T: ParserListener> Parser<T> {
 
     fn csi_dispatch(&self, csi_command: &str, params: &[u32], is_private: bool) {
         let ich_code = &ICH(None).to_string(); // TODO fix this code
+        let cuu_code = &CUU(None).to_string();
+        let cud_code = &CUD(None).to_string();
         match csi_command {
-            ec if ec == ich_code => {
-                self.listener.insert_characters(if !params.is_empty() {
-                    Some(params[0])
-                } else {
-                    None
-                });
-            }
+            ec if ec == ich_code => self.listener.insert_characters(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+
+            ec if ec == cuu_code => self.listener.cursor_up(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+
+            ec if ec == cud_code => self.listener.cursor_down(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
             _ => {
                 println!("unexpected csi escape code");
             }

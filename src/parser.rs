@@ -1,22 +1,22 @@
 use ansi_control_codes::c0::{BEL, BS, CAN, CR, ESC, FF, HT, LF, SI, SO, SUB, VT};
-use ansi_control_codes::c1::{CSI, HTS, NEL, OSC, RI};
-use ansi_control_codes::independent_control_functions::RIS;
+use ansi_control_codes::c1::{CSI, HTS, NEL, OSC, RI}; // TODO direct string comparison for this codes does not work. You should match whole code viwth ESC
+use ansi_control_codes::control_sequences::ICH; // TODO direct string comparison does not work
+use ansi_control_codes::independent_control_functions::RIS; //TODO direct string comparison does not work
 use ansi_control_codes::ControlFunction;
-use genawaiter::sync::gen;
 use genawaiter::yield_;
 
 use crate::ascii;
 use crate::parser_listener::ParserListener;
 
-pub const DECALN: &'static str = ascii!(3 / 8);
-pub const IND: &'static str = ascii!(4 / 4);
-pub const DECSC: &'static str = ascii!(3 / 7);
-pub const DECRC: &'static str = ascii!(3 / 8);
-pub const SP: &'static str = ascii!(2 / 0);
-pub const GREATER: &'static str = ascii!(3 / 14);
+pub const DECALN: &str = ascii!(3 / 8);
+pub const IND: &str = ascii!(4 / 4);
+pub const DECSC: &str = ascii!(3 / 7);
+pub const DECRC: &str = ascii!(3 / 8);
+pub const SP: &str = ascii!(2 / 0);
+pub const GREATER: &str = ascii!(3 / 14);
 
-pub const BASIC: &'static [ControlFunction; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
-pub const ALLOWED_IN_CSI: &'static [ControlFunction; 7] = &[BEL, BS, HT, LF, VT, FF, CR];
+pub const BASIC: &[ControlFunction; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
+pub const ALLOWED_IN_CSI: &[ControlFunction; 7] = &[BEL, BS, HT, LF, VT, FF, CR];
 
 pub struct Parser<T: ParserListener> {
     listener: T,
@@ -102,6 +102,7 @@ impl<T: ParserListener> Parser<T> {
                                 } else {
                                     self.csi_dispatch(char, &params[..], false);
                                 }
+                                break;
                             }
                         }
                     }
@@ -181,5 +182,19 @@ impl<T: ParserListener> Parser<T> {
         }
     }
 
-    fn csi_dispatch(&self, csi_command: &str, params: &[u32], is_private: bool) {}
+    fn csi_dispatch(&self, csi_command: &str, params: &[u32], is_private: bool) {
+        let ich_code = &ICH(None).to_string(); // TODO fix this code
+        match csi_command {
+            ec if ec == ich_code => {
+                self.listener.insert_characters(if !params.is_empty() {
+                    Some(params[0])
+                } else {
+                    None
+                });
+            }
+            _ => {
+                println!("unexpected csi escape code");
+            }
+        }
+    }
 }

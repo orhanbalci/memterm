@@ -16,4 +16,7 @@ pub trait ParserListener {
     fn cariage_return(&self);
 
     fn draw(&self, input: &str);
+
+    //csi commands
+    fn insert_characters(&self, count: Option<u32>);
 }

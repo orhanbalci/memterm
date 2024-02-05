@@ -1,73 +1,40 @@
-// *Space*: Not surprisingly -- ``" "``.
-const SP: &str = " ";
+use crate::ascii;
 
-// *Null*: Does nothing.
-const NUL: &str = "\x00";
+//C0 codes
+pub const BEL: &str = ascii!(0 / 7);
+pub const BS: &str = ascii!(0 / 8);
+pub const CAN: &str = ascii!(1 / 8);
+pub const CR: &str = ascii!(0 / 13);
+pub const ESC: &str = ascii!(1 / 11);
+pub const FF: &str = ascii!(0 / 12);
+pub const HT: &str = ascii!(0 / 9);
+pub const LF: &str = ascii!(0 / 10);
+pub const SI: &str = ascii!(0 / 15);
+pub const SO: &str = ascii!(0 / 14);
+pub const SUB: &str = ascii!(1 / 10);
+pub const VT: &str = ascii!(0 / 11);
 
-// *Bell*: Beeps.
-const BEL: &str = "\x07";
+//C1 codes
+pub const CSI: &str = ascii!(5 / 11);
+pub const HTS: &str = ascii!(4 / 8);
+pub const NEL: &str = ascii!(4 / 5);
+pub const OSC: &str = ascii!(5 / 13);
+pub const RI: &str = ascii!(4 / 13);
+pub const ST: &str = ascii!(5 / 12);
 
-// *Backspace*: Backspace one column, but not past the beginning of the
-// line.
-const BS: &str = "\x08";
+// CSI escape sequences
+pub const ICH: &str = ascii!(4 / 0);
+pub const CUU: &str = ascii!(4 / 1);
+pub const CUD: &str = ascii!(4 / 2);
 
-// *Horizontal tab*: Move cursor to the next tab stop, or to the end
-// of the line if there is no earlier tab stop.
-const HT: &str = "\x09";
+pub const DECALN: &str = ascii!(3 / 8);
+pub const IND: &str = ascii!(4 / 4);
+pub const DECSC: &str = ascii!(3 / 7);
+pub const DECRC: &str = ascii!(3 / 8);
+pub const SP: &str = ascii!(2 / 0);
+pub const GREATER: &str = ascii!(3 / 14);
+pub const RIS: &str = ascii!(6 / 3);
 
-// *Linefeed*: Give a line feed, and, if :data:`pyte.modes.LNM` (new
-// line mode) is set also a carriage return.
-const LF: &str = "\n";
-
-// *Vertical tab*: Same as :data:`LF`.
-const VT: &str = "\x0b";
-
-// #: *Form feed*: Same as :data:`LF`.
-const FF: &str = "\x0c";
-
-// #: *Carriage return*: Move cursor to left margin on current line.
-const CR: &str = "\r";
-
-// #: *Shift out*: Activate G1 character set.
-const SO: &str = "\x0e;";
-
-// #: *Shift in*: Activate G0 character set.
-const SI: &str = "\x0f";
-
-// #: *Cancel*: Interrupt escape sequence. If received during an escape or
-// #: control sequence, cancels the sequence and displays substitution
-// #: character.
-const CAN: &str = "\x18";
-// #: *Substitute*: Same as :data:`CAN`.
-const SUB: &str = "\x1a";
-
-// #: *Escape*: Starts an escape sequence.
-const ESC: &str = "\x1b";
-
-// #: *Delete*: Is ignored.
-const DEL: &str = "\x7f";
-
-// #: *Control sequence introducer*.
-// const CSI_C0: &str = &format!("{}{}", ESC, "[");
-// const CSI_C1 : &str = "\x9b";
-// const CSI: &str = CSI_C0;
-
-// #: *String terminator*.
-// const ST_C0 : &str = ESC + "\\";
-// const ST_C1 : &str = "\x9c";
-// const ST: &str = ST_C0;
-
-// #: *Operating system command*.
-// const OSC_C0 : &str = ESC + "]";
-// const OSC_C1 : &'static str = "\x9d";
-// const OSC = OSC_C0;
-
-#[cfg(test)]
-mod test {
-
-    #[test]
-    fn ris() {
-        use ansi_control_codes::independent_control_functions::RIS;
-        println!("RIS: {}", RIS);
-    }
-}
+pub const BASIC: &[&str; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
+pub const ALLOWED_IN_CSI: &[&str; 7] = &[BEL, BS, HT, LF, VT, FF, CR];
+pub const OSC_TERMINATORS: &[&str; 2] = &[BEL, ST];

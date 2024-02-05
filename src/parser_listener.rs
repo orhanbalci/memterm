@@ -21,4 +21,10 @@ pub trait ParserListener {
     fn insert_characters(&self, count: Option<u32>);
     fn cursor_up(&self, count: Option<u32>);
     fn cursor_down(&self, count: Option<u32>);
+    fn cursor_forward(&self, count: Option<u32>);
+    fn cursor_back(&self, count: Option<u32>);
+    fn cursor_down1(&self, count: Option<u32>);
+    fn cursor_up1(&self, count: Option<u32>);
+    fn cursor_to_column(&self, character: Option<u32>);
+    fn cursor_position(&self, line: Option<u32>, character: Option<u32>);
 }

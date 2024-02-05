@@ -176,18 +176,49 @@ impl<T: ParserListener> Parser<T> {
             } else {
                 None
             }),
-
             ec if ec == CUD => self.listener.cursor_up(if !params.is_empty() {
                 Some(params[0])
             } else {
                 None
             }),
-
             ec if ec == CUU => self.listener.cursor_down(if !params.is_empty() {
                 Some(params[0])
             } else {
                 None
             }),
+            ec if ec == CUF => self.listener.cursor_forward(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == CUB => self.listener.cursor_back(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == CNL => self.listener.cursor_down1(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == CPL => self.listener.cursor_up1(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == CHA => self.listener.cursor_to_column(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == CUP => {
+                if !params.is_empty() {
+                    self.listener
+                        .cursor_position(Some(params[0]), Some(params[1]));
+                } else {
+                    self.listener.cursor_position(None, None)
+                }
+            }
             _ => {
                 println!("unexpected csi escape code");
             }

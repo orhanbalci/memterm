@@ -26,6 +26,12 @@ pub const ST: &str = ascii!(5 / 12);
 pub const ICH: &str = ascii!(4 / 0);
 pub const CUU: &str = ascii!(4 / 1);
 pub const CUD: &str = ascii!(4 / 2);
+pub const CUF: &str = ascii!(4 / 3);
+pub const CUB: &str = ascii!(4 / 4);
+pub const CNL: &str = ascii!(4 / 5);
+pub const CPL: &str = ascii!(4 / 6);
+pub const CHA: &str = ascii!(4 / 7);
+pub const CUP: &str = ascii!(4 / 8);
 
 pub const DECALN: &str = ascii!(3 / 8);
 pub const IND: &str = ascii!(4 / 4);

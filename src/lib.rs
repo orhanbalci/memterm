@@ -9,19 +9,3 @@ pub mod charset;
 pub mod control;
 pub mod parser;
 pub mod parser_listener;
-
-#[cfg(test)]
-mod test {
-    use ansi_control_codes::c0::ESC;
-
-    use crate::charset;
-
-    #[test]
-    fn write_vt_100_chars() {
-        let code = ESC.to_string().into_bytes();
-        assert!(code.len() == 1);
-        println!("{:#010b}", code.get(0).unwrap());
-        println!("{:?}", ESC.to_string());
-        println!("{:#010b}", "".as_bytes()[0]);
-    }
-}

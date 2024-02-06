@@ -38,6 +38,8 @@ pub const IL: &str = ascii!(4 / 12);
 pub const DL: &str = ascii!(4 / 13);
 pub const DCH: &str = ascii!(5 / 0);
 pub const ECH: &str = ascii!(5 / 8);
+pub const HPR: &str = ascii!(6 / 1);
+pub const DA: &str = ascii!(6 / 3);
 
 pub const DECALN: &str = ascii!(3 / 8);
 pub const IND: &str = ascii!(4 / 4);

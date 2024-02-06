@@ -33,4 +33,5 @@ pub trait ParserListener {
     fn delete_lines(&self, count: Option<u32>);
     fn delete_characters(&self, count: Option<u32>);
     fn erase_characters(&self, count: Option<u32>);
+    fn report_device_attributes(&self, attribute: Option<u32>);
 }

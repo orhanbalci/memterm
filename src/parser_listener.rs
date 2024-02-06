@@ -27,4 +27,10 @@ pub trait ParserListener {
     fn cursor_up1(&self, count: Option<u32>);
     fn cursor_to_column(&self, character: Option<u32>);
     fn cursor_position(&self, line: Option<u32>, character: Option<u32>);
+    fn erase_in_display(&self, erase_page: Option<u32>);
+    fn erase_in_line(&self, erase_line: Option<u32>);
+    fn insert_lines(&self, count: Option<u32>);
+    fn delete_lines(&self, count: Option<u32>);
+    fn delete_characters(&self, count: Option<u32>);
+    fn erase_characters(&self, count: Option<u32>);
 }

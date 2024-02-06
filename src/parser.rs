@@ -219,6 +219,32 @@ impl<T: ParserListener> Parser<T> {
                     self.listener.cursor_position(None, None)
                 }
             }
+            ec if ec == ED => self.listener.erase_in_display(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == EL => self.listener.erase_in_line(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == IL => self.listener.insert_lines(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == DL => self.listener.delete_lines(if !params.is_empty() {
+                Some(params[0])
+            } else {
+                None
+            }),
+            ec if ec == DCH => self
+                .listener
+                .delete_characters(params.iter().cloned().next()),
+            ec if ec == ECH => self
+                .listener
+                .erase_characters(params.iter().cloned().next()),
             _ => {
                 println!("unexpected csi escape code");
             }

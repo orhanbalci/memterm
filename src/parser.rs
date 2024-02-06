@@ -249,6 +249,11 @@ impl<T: ParserListener> Parser<T> {
             ec if ec == DA => self
                 .listener
                 .report_device_attributes(params.iter().cloned().next()),
+            ec if ec == VPA => self.listener.cursor_to_line(params.iter().cloned().next()),
+            ec if ec == VPR => self.listener.cursor_down(params.iter().cloned().next()),
+            ec if ec == HVP => self
+                .listener
+                .cursor_position(params.iter().cloned().nth(0), params.iter().cloned().nth(1)),
             _ => {
                 println!("unexpected csi escape code");
             }

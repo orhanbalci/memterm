@@ -40,6 +40,9 @@ pub const DCH: &str = ascii!(5 / 0);
 pub const ECH: &str = ascii!(5 / 8);
 pub const HPR: &str = ascii!(6 / 1);
 pub const DA: &str = ascii!(6 / 3);
+pub const VPA: &str = ascii!(6 / 4);
+pub const VPR: &str = ascii!(6 / 5);
+pub const HVP: &str = ascii!(6 / 6);
 
 pub const DECALN: &str = ascii!(3 / 8);
 pub const IND: &str = ascii!(4 / 4);

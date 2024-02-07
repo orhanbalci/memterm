@@ -254,6 +254,10 @@ impl<T: ParserListener> Parser<T> {
             ec if ec == HVP => self
                 .listener
                 .cursor_position(params.iter().cloned().nth(0), params.iter().cloned().nth(1)),
+            ec if ec == TBC => self.listener.clear_tab_stop(params.iter().cloned().next()),
+            ec if ec == SM => self.listener.set_mode(params),
+            ec if ec == RM => self.listener.reset_mode(params),
+            ec if ec == SGR => self.listener.select_graphic_rendition(params),
             _ => {
                 println!("unexpected csi escape code");
             }

@@ -32,7 +32,9 @@ use crate::control::{
     RIS,
     RM,
     SGR,
+    SI,
     SM,
+    SO,
     TBC,
     VPA,
     VPR,
@@ -49,6 +51,8 @@ pub trait ParserListener {
     fn set_tab_stop(&self);
     fn save_cursor(&self);
     fn restore_cursor(&self);
+    fn shift_out(&self);
+    fn shift_in(&self);
 
     // basic esvape code actions
     fn bell(&self);
@@ -126,6 +130,12 @@ pub trait ParserListener {
             }
             ec if ec == CR => {
                 self.cariage_return();
+            }
+            ec if ec == SO => {
+                self.shift_out();
+            }
+            ec if ec == SI => {
+                self.shift_in();
             }
             _ => {
                 println!("un expected escape code")

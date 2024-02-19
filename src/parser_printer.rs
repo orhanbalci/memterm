@@ -1,8 +1,8 @@
 use crate::parser_listener::ParserListener;
 
-pub struct Screen {}
+pub struct ParserPrinter {}
 
-impl ParserListener for Screen {
+impl ParserListener for ParserPrinter {
     fn alignment_display(&self) {
         println!("alignment display");
     }
@@ -141,5 +141,13 @@ impl ParserListener for Screen {
 
     fn select_graphic_rendition(&self, modes: &[u32]) {
         println!("select graphic rendition");
+    }
+
+    fn shift_out(&self) {
+        println!("shift out");
+    }
+
+    fn shift_in(&self) {
+        println!("shift in");
     }
 }

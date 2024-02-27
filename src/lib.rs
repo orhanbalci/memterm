@@ -7,6 +7,8 @@ macro_rules! ascii {
 pub(crate) use ascii;
 pub mod charset;
 pub mod control;
+pub mod modes;
 pub mod parser;
 pub mod parser_listener;
 pub mod parser_printer;
+pub mod screen;

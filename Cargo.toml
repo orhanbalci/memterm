@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 generator = "0.7.5"
 lazy_static = "1.4.0"
+unicode-width = "0.1.11"

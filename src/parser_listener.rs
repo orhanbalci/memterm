@@ -44,7 +44,7 @@ use crate::control::{
 pub trait ParserListener {
     fn alignment_display(&self);
     fn define_charset(&self, code: &str, mode: &str);
-    fn reset(&self);
+    fn reset(&mut self);
     fn index(&self);
     fn linefeed(&self);
     fn reverse_index(&self);
@@ -85,7 +85,7 @@ pub trait ParserListener {
     fn reset_mode(&self, modes: &[u32]);
     fn select_graphic_rendition(&self, modes: &[u32]);
 
-    fn escape_dispatch(&self, escape_command: &str) {
+    fn escape_dispatch(&mut self, escape_command: &str) {
         match escape_command {
             ec if ec == RIS => {
                 self.reset();

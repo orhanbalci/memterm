@@ -11,7 +11,7 @@ impl ParserListener for ParserPrinter {
         println!("defining charset");
     }
 
-    fn reset(&self) {
+    fn reset(&mut self) {
         println!("reset");
     }
 

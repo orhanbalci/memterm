@@ -6,6 +6,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::charset::{LAT1_MAP, VT100_MAP};
 use crate::modes::{DECAWM, DECTCEM};
+use crate::parser::Parser;
 use crate::parser_listener::ParserListener;
 
 pub struct CharOpts {
@@ -132,6 +133,55 @@ impl<'a> Screen<'a> {
 
         return result;
     }
+
+    /// Resize the screen to the given size.
+    ///
+    ///If the requested screen size has more lines than the existing
+    ///screen, lines will be added at the bottom. If the requested
+    ///size has less lines than the existing screen lines will be
+    ///clipped at the top of the screen. Similarly, if the existing
+    ///screen has less columns than the requested screen, columns will
+    ///be added at the right, and if it has more -- columns will be
+    ///clipped at the right.
+    ///
+    ///:param int lines: number of lines in the new screen.
+    ///:param int columns: number of columns in the new screen.
+    ///
+    ///.. versionchanged:: 0.7.0
+    ///
+    ///   If the requested screen size is identical to the current screen
+    ///   size, the method does nothing.
+    pub fn resize(&mut self, lines: Option<u32>, columns: Option<u32>) {
+        let lines = lines.or(Some(self.lines)).expect("can not read lines");
+        let columns = columns
+            .or(Some(self.columns))
+            .expect("can not read columns");
+
+        if lines == self.lines && columns == self.columns {
+            return; // No changes.
+        }
+
+        self.dirty.extend(0..lines);
+
+        if lines < self.lines {
+            self.save_cursor();
+            self.cursor_position(Some(0), Some(0));
+            self.delete_lines(Some(self.lines - lines)); // Drop from the top.
+            self.restore_cursor();
+        }
+
+        if columns < self.columns {
+            for line in self.buffer.values_mut() {
+                for x in columns..self.columns {
+                    line.remove(&x);
+                }
+            }
+        }
+
+        (self.lines, self.columns) = (lines, columns);
+        self.set_margins(None, None);
+    }
+    pub fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {}
 }
 
 impl<'a> ParserListener for Screen<'a> {

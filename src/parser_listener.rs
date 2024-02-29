@@ -81,7 +81,7 @@ pub trait ParserListener {
     fn report_device_attributes(&self, attribute: Option<u32>);
     fn cursor_to_line(&self, count: Option<u32>);
     fn clear_tab_stop(&self, option: Option<u32>);
-    fn set_mode(&self, modes: &[u32]);
+    fn set_mode(&mut self, modes: &[u32], is_private: bool);
     fn reset_mode(&self, modes: &[u32]);
     fn select_graphic_rendition(&self, modes: &[u32]);
 
@@ -143,7 +143,7 @@ pub trait ParserListener {
         }
     }
 
-    fn csi_dispatch(&self, csi_command: &str, params: &[u32], is_private: bool) {
+    fn csi_dispatch(&mut self, csi_command: &str, params: &[u32], is_private: bool) {
         match csi_command {
             ec if ec == ICH => self.insert_characters(if !params.is_empty() {
                 Some(params[0])
@@ -222,7 +222,7 @@ pub trait ParserListener {
                 self.cursor_position(params.iter().cloned().nth(0), params.iter().cloned().nth(1))
             }
             ec if ec == TBC => self.clear_tab_stop(params.iter().cloned().next()),
-            ec if ec == SM => self.set_mode(params),
+            ec if ec == SM => self.set_mode(params, is_private),
             ec if ec == RM => self.reset_mode(params),
             ec if ec == SGR => self.select_graphic_rendition(params),
             _ => {

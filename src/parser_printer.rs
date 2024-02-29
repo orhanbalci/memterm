@@ -131,7 +131,7 @@ impl ParserListener for ParserPrinter {
         println!("clear tab stop");
     }
 
-    fn set_mode(&self, modes: &[u32]) {
+    fn set_mode(&mut self, modes: &[u32], is_private: bool) {
         println!("set mode");
     }
 

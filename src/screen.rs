@@ -1,3 +1,4 @@
+use std::collections::btree_map::Keys;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
@@ -5,8 +6,7 @@ use lazy_static::lazy_static;
 use unicode_width::UnicodeWidthStr;
 
 use crate::charset::{LAT1_MAP, VT100_MAP};
-use crate::modes::{DECAWM, DECTCEM};
-use crate::parser::Parser;
+use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM};
 use crate::parser_listener::ParserListener;
 
 pub struct CharOpts {
@@ -45,6 +45,7 @@ pub struct Cursor {
 }
 
 /// A container for screen's scroll margins
+#[derive(Clone, Copy)]
 pub struct Margins {
     pub top: u32,
     pub bottom: u32,
@@ -181,7 +182,54 @@ impl<'a> Screen<'a> {
         (self.lines, self.columns) = (lines, columns);
         self.set_margins(None, None);
     }
-    pub fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {}
+
+    // Select top and bottom margins for the scrolling region.
+
+    // :param int top: the smallest line number that is scrolled.
+    // :param int bottom: the biggest line number that is scrolled.
+    pub fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {
+        // XXX 0 corresponds to the CSI with no parameters.
+        if top.or(Some(0)).expect("unexpected bottom value") == 0 && bottom.is_none() {
+            self.margins = None;
+            return;
+        }
+
+        let margins_inner = self
+            .margins
+            .or(Some(Margins { top: 0, bottom: self.lines - 1 }))
+            .expect("unexpected margins value");
+
+        // Arguments are 1-based, while :attr:`margins` are zero
+        // based -- so we have to decrement them by one. We also
+        // make sure that both of them is bounded by [0, lines - 1].
+        let top = if top.is_none() {
+            margins_inner.top
+        } else {
+            u32::max(
+                0,
+                u32::min(top.expect("unexpected top value") - 1, self.lines - 1),
+            )
+        };
+
+        let bottom = if bottom.is_none() {
+            margins_inner.bottom
+        } else {
+            u32::max(
+                0,
+                u32::min(bottom.expect("unexpected bottom value") - 1, self.lines - 1),
+            )
+        };
+
+        // Even though VT102 and VT220 require DECSTBM to ignore
+        // regions of width less than 2, some programs (like aptitude
+        // for example) rely on it. Practicality beats purity.
+        if bottom - top >= 1 {
+            self.margins = Some(Margins { top: top, bottom: bottom });
+            // The cursor moves to the home position when the top and
+            // bottom margins of the scrolling region (DECSTBM) changes.
+            self.cursor_position(None, None);
+        }
+    }
 }
 
 impl<'a> ParserListener for Screen<'a> {
@@ -362,8 +410,54 @@ impl<'a> ParserListener for Screen<'a> {
         todo!()
     }
 
-    fn set_mode(&self, modes: &[u32]) {
-        todo!()
+    // Set (enable) a given list of modes.
+    // :param list modes: modes to set, where each mode is a constant
+    //    from :mod:`pyte.modes`.
+
+    fn set_mode(&mut self, modes: &[u32], private: bool) {
+        // mode_list = list(modes)
+        // Private mode codes are shifted, to be distinguished from non
+        // private ones.
+        let mut mode_list = Vec::from(modes);
+        if private {
+            mode_list = modes.iter().map(|m| m << 5).collect::<Vec<_>>();
+            if mode_list.iter().any(|m| *m == DECSCNM) {
+                self.dirty.extend(0..self.lines);
+            }
+        }
+
+        self.mode.extend(mode_list.iter());
+
+        // When DECOLM mode is set, the screen is erased and the cursor
+        // moves to the home position.
+        if mode_list.iter().any(|m| *m == DECCOLM) {
+            self.saved_columns = Some(self.columns);
+            self.resize(None, Some(132));
+            self.erase_in_display(Some(2));
+            self.cursor_position(None, None);
+        }
+
+        // According to VT520 manual, DECOM should also home the cursor.
+        if mode_list.iter().any(|m| *m == DECOM) {
+            self.cursor_position(None, None);
+        }
+
+        // Mark all displayed characters as reverse.
+        if mode_list.iter().any(|m| *m == DECSCNM) {
+            for line in self.buffer.values_mut() {
+                // line.default = self.default_char;
+                for x in line.iter_mut() {
+                    x.1.reverse = true;
+                }
+            }
+
+            self.select_graphic_rendition(&[7]); // +reverse.
+        }
+
+        // # Make the cursor visible.
+        if mode_list.iter().any(|m| *m == DECTCEM) {
+            self.cursor.hidden = false;
+        }
     }
 
     fn reset_mode(&self, modes: &[u32]) {

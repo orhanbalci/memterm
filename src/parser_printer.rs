@@ -143,11 +143,11 @@ impl ParserListener for ParserPrinter {
         println!("select graphic rendition");
     }
 
-    fn shift_out(&self) {
+    fn shift_out(&mut self) {
         println!("shift out");
     }
 
-    fn shift_in(&self) {
+    fn shift_in(&mut self) {
         println!("shift in");
     }
 }

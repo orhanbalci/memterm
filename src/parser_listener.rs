@@ -51,8 +51,8 @@ pub trait ParserListener {
     fn set_tab_stop(&self);
     fn save_cursor(&self);
     fn restore_cursor(&self);
-    fn shift_out(&self);
-    fn shift_in(&self);
+    fn shift_out(&mut self);
+    fn shift_in(&mut self);
 
     // basic esvape code actions
     fn bell(&self);
@@ -114,7 +114,7 @@ pub trait ParserListener {
         }
     }
 
-    fn basic_dispatch(&self, basic_command: &str) {
+    fn basic_dispatch(&mut self, basic_command: &str) {
         match basic_command {
             ec if ec == BEL => {
                 self.bell();

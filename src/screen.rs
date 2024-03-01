@@ -137,21 +137,21 @@ impl<'a> Screen<'a> {
 
     /// Resize the screen to the given size.
     ///
-    ///If the requested screen size has more lines than the existing
-    ///screen, lines will be added at the bottom. If the requested
-    ///size has less lines than the existing screen lines will be
-    ///clipped at the top of the screen. Similarly, if the existing
-    ///screen has less columns than the requested screen, columns will
-    ///be added at the right, and if it has more -- columns will be
-    ///clipped at the right.
+    /// If the requested screen size has more lines than the existing
+    /// screen, lines will be added at the bottom. If the requested
+    /// size has less lines than the existing screen lines will be
+    /// clipped at the top of the screen. Similarly, if the existing
+    /// screen has less columns than the requested screen, columns will
+    /// be added at the right, and if it has more columns will be
+    /// clipped at the right.
     ///
-    ///:param int lines: number of lines in the new screen.
-    ///:param int columns: number of columns in the new screen.
+    /// # Arguments
     ///
-    ///.. versionchanged:: 0.7.0
+    /// * `lines` - number of lines in the new screen.
+    /// * `columns` - number of columns in the new screen.
     ///
-    ///   If the requested screen size is identical to the current screen
-    ///   size, the method does nothing.
+    /// <div class="warning">   If the requested screen size is identical to the current screen
+    ///    size, the method does nothing.</div>
     pub fn resize(&mut self, lines: Option<u32>, columns: Option<u32>) {
         let lines = lines.or(Some(self.lines)).expect("can not read lines");
         let columns = columns
@@ -237,12 +237,16 @@ impl<'a> ParserListener for Screen<'a> {
         todo!()
     }
 
-    // Define ``G0`` or ``G1`` charset.
-    // :param str code: character set code, should be a character
-    //  from ``"B0UK"``, otherwise ignored.
-    // :param str mode: if ``"("`` ``G0`` charset is defined, if
-    //  ``")"`` -- we operate on ``G1``.
-    // .. warning:: User-defined charsets are currently not supported.
+    /// Define ``G0`` or ``G1`` charset.
+    ///
+    /// # Arguments
+    /// * `code` - character set code, should be a character
+    ///  from ``"B0UK"``, otherwise ignored.
+    ///
+    /// * `mode` - if ``"("`` ``G0`` charset is defined, if
+    ///  ``")"`` we operate on ``G1``.
+    ///
+    /// <div class="warning">User-defined charsets are currently not supported.</div>
     fn define_charset(&mut self, code: &str, mode: &str) {
         if MAPS.keys().any(|&a| a == code) {
             if mode == "(" {
@@ -257,19 +261,18 @@ impl<'a> ParserListener for Screen<'a> {
         }
     }
 
-    ///Reset the terminal to its initial state.
-    ///* Scrolling margins are reset to screen boundaries.
-    ///* Cursor is moved to home location -- ``(0, 0)`` and its
-    ///  attributes are set to defaults.
-    ///* Screen is cleared -- each character is reset to default char
-    ///* Tabstops are reset to "every eight columns".
-    ///* All lines are marked as dirty.
+    /// Reset the terminal to its initial state.
     ///
-    ///.. note::
+    /// * Scrolling margins are reset to screen boundaries.
+    /// * Cursor is moved to home location ``(0, 0)`` and its
+    ///   attributes are set to defaults.
+    /// * Screen is cleared, each character is reset to default char
+    /// * Tabstops are reset to "every eight columns".
+    /// * All lines are marked as dirty.
     ///
-    ///   Neither VT220 nor VT102 manuals mention that terminal modes
-    ///   and tabstops should be reset as well, thanks to
-    ///   :manpage:`xterm` -- we now know that.
+    /// <div class="warning">Neither VT220 nor VT102 manuals mention that terminal modes
+    ///    and tabstops should be reset as well, thanks to
+    ///    <code>xterm</code> -- we now know that.</div>
     fn reset(&mut self) {
         self.dirty.clear();
         self.dirty.extend(0..self.lines);
@@ -326,12 +329,14 @@ impl<'a> ParserListener for Screen<'a> {
         todo!()
     }
 
-    fn shift_out(&self) {
-        todo!()
+    /// Select ``G1`` character set.
+    fn shift_out(&mut self) {
+        self.charset = Charset::G1;
     }
 
-    fn shift_in(&self) {
-        todo!()
+    /// Select ``G0`` character set.
+    fn shift_in(&mut self) {
+        self.charset = Charset::G0;
     }
 
     fn bell(&self) {

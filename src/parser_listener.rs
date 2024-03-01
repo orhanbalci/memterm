@@ -58,7 +58,7 @@ pub trait ParserListener {
     fn bell(&self);
     fn backspace(&self);
     fn tab(&self);
-    fn cariage_return(&self);
+    fn cariage_return(&mut self);
 
     fn draw(&self, input: &str);
 
@@ -84,6 +84,8 @@ pub trait ParserListener {
     fn set_mode(&mut self, modes: &[u32], is_private: bool);
     fn reset_mode(&mut self, modes: &[u32], is_private: bool);
     fn select_graphic_rendition(&self, modes: &[u32]);
+    fn set_title(&mut self, title: &str);
+    fn set_icon_name(&mut self, icon_name: &str);
 
     fn escape_dispatch(&mut self, escape_command: &str) {
         match escape_command {

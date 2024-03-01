@@ -51,7 +51,7 @@ impl ParserListener for ParserPrinter {
         println!("tab");
     }
 
-    fn cariage_return(&self) {
+    fn cariage_return(&mut self) {
         println!("carriage return")
     }
 
@@ -149,5 +149,13 @@ impl ParserListener for ParserPrinter {
 
     fn shift_in(&mut self) {
         println!("shift in");
+    }
+
+    fn set_title(&mut self, title: &str) {
+        println!("set_title {}", title);
+    }
+
+    fn set_icon_name(&mut self, icon_name: &str) {
+        println!("set icon_name {}", icon_name);
     }
 }

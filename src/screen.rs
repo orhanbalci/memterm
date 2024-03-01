@@ -351,8 +351,9 @@ impl<'a> ParserListener for Screen<'a> {
         todo!()
     }
 
-    fn cariage_return(&self) {
-        todo!()
+    /// Move the cursor to the beginning of the current line.
+    fn cariage_return(&mut self) {
+        self.cursor.x = 0;
     }
 
     fn draw(&self, input: &str) {
@@ -537,5 +538,19 @@ impl<'a> ParserListener for Screen<'a> {
 
     fn select_graphic_rendition(&self, modes: &[u32]) {
         todo!()
+    }
+
+    /// Set terminal title.
+    ///
+    /// <div class="warning">This is an XTerm extension supported by the Linux terminal.</div>
+    fn set_title(&mut self, title: &str) {
+        self.title = title.to_owned();
+    }
+
+    /// Set icon name
+    ///
+    /// <div class="warning">This is an XTerm extension supported by the Linux terminal.</div>
+    fn set_icon_name(&mut self, icon_name: &str) {
+        self.icon_name = icon_name.to_owned();
     }
 }

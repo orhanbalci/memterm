@@ -460,8 +460,58 @@ impl<'a> ParserListener for Screen<'a> {
         }
     }
 
-    fn reset_mode(&self, modes: &[u32]) {
-        todo!()
+    // Reset (disable) a given list of modes.
+    // :param list modes: modes to reset -- hopefully, each mode is a
+    //                   constant from :mod:`pyte.modes`.
+    //
+    fn reset_mode(&mut self, modes: &[u32], is_private: bool) {
+        let mut mode_list = Vec::from(modes);
+        // Private mode codes are shifted, to be distinguished from non
+        // private ones.
+        if is_private {
+            mode_list = modes.iter().map(|m| m << 5).collect::<Vec<_>>();
+            if mode_list.iter().any(|m| *m == DECSCNM) {
+                self.dirty.extend(0..self.lines);
+            }
+        }
+
+        // retain mode mode_list difference
+        self.mode = self
+            .mode
+            .iter()
+            .filter(|&&x| !mode_list.iter().any(|&y| x == y))
+            .cloned()
+            .collect();
+
+        // Lines below follow the logic in :meth:`set_mode`.
+        if mode_list.iter().any(|m| *m == DECCOLM) {
+            self.saved_columns = Some(self.columns);
+            self.resize(None, Some(132));
+            self.erase_in_display(Some(2));
+            self.cursor_position(None, None);
+        }
+
+        // According to VT520 manual, DECOM should also home the cursor.
+        if mode_list.iter().any(|m| *m == DECOM) {
+            self.cursor_position(None, None);
+        }
+
+        // Mark all displayed characters as reverse.
+        if mode_list.iter().any(|m| *m == DECSCNM) {
+            for line in self.buffer.values_mut() {
+                // line.default = self.default_char;
+                for x in line.iter_mut() {
+                    x.1.reverse = true;
+                }
+            }
+
+            self.select_graphic_rendition(&[27]); // +reverse.
+        }
+
+        // Hide the cursor.
+        if mode_list.iter().any(|m| *m == DECTCEM) {
+            self.cursor.hidden = true;
+        }
     }
 
     fn select_graphic_rendition(&self, modes: &[u32]) {

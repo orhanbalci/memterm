@@ -82,7 +82,7 @@ pub trait ParserListener {
     fn cursor_to_line(&self, count: Option<u32>);
     fn clear_tab_stop(&self, option: Option<u32>);
     fn set_mode(&mut self, modes: &[u32], is_private: bool);
-    fn reset_mode(&self, modes: &[u32]);
+    fn reset_mode(&mut self, modes: &[u32], is_private: bool);
     fn select_graphic_rendition(&self, modes: &[u32]);
 
     fn escape_dispatch(&mut self, escape_command: &str) {
@@ -223,7 +223,7 @@ pub trait ParserListener {
             }
             ec if ec == TBC => self.clear_tab_stop(params.iter().cloned().next()),
             ec if ec == SM => self.set_mode(params, is_private),
-            ec if ec == RM => self.reset_mode(params),
+            ec if ec == RM => self.reset_mode(params, is_private),
             ec if ec == SGR => self.select_graphic_rendition(params),
             _ => {
                 println!("unexpected csi escape code");

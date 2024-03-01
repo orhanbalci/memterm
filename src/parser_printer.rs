@@ -135,7 +135,7 @@ impl ParserListener for ParserPrinter {
         println!("set mode");
     }
 
-    fn reset_mode(&self, modes: &[u32]) {
+    fn reset_mode(&mut self, modes: &[u32], is_private: bool) {
         println!("reset mode");
     }
 

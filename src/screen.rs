@@ -5,7 +5,7 @@ use std::fmt::Display;
 use lazy_static::lazy_static;
 use unicode_width::UnicodeWidthStr;
 
-use crate::charset::{LAT1_MAP, VT100_MAP};
+use crate::charset::{LAT1_MAP, MAPS, VT100_MAP};
 use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM};
 use crate::parser_listener::ParserListener;
 
@@ -237,8 +237,24 @@ impl<'a> ParserListener for Screen<'a> {
         todo!()
     }
 
-    fn define_charset(&self, code: &str, mode: &str) {
-        todo!()
+    // Define ``G0`` or ``G1`` charset.
+    // :param str code: character set code, should be a character
+    //  from ``"B0UK"``, otherwise ignored.
+    // :param str mode: if ``"("`` ``G0`` charset is defined, if
+    //  ``")"`` -- we operate on ``G1``.
+    // .. warning:: User-defined charsets are currently not supported.
+    fn define_charset(&mut self, code: &str, mode: &str) {
+        if MAPS.keys().any(|&a| a == code) {
+            if mode == "(" {
+                self.g0_charset = MAPS
+                    .get(code)
+                    .expect(&format!("unexpected character map key {}", code));
+            } else if mode == ")" {
+                self.g1_charset = MAPS
+                    .get(code)
+                    .expect(&format!("unexpected character map key {}", code));
+            }
+        }
     }
 
     ///Reset the terminal to its initial state.

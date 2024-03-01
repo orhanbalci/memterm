@@ -43,7 +43,7 @@ use crate::control::{
 
 pub trait ParserListener {
     fn alignment_display(&self);
-    fn define_charset(&self, code: &str, mode: &str);
+    fn define_charset(&mut self, code: &str, mode: &str);
     fn reset(&mut self);
     fn index(&self);
     fn linefeed(&self);

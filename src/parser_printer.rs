@@ -7,7 +7,7 @@ impl ParserListener for ParserPrinter {
         println!("alignment display");
     }
 
-    fn define_charset(&self, code: &str, mode: &str) {
+    fn define_charset(&mut self, code: &str, mode: &str) {
         println!("defining charset");
     }
 

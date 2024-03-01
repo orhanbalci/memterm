@@ -1,3 +1,7 @@
+use std::collections::HashMap;
+
+use lazy_static::lazy_static;
+
 const N: usize = 256;
 const VT100_CHARS: [u32; N] = [
     0x0000u32, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007, 0x0008, 0x0009, 0x000a,
@@ -103,3 +107,14 @@ pub const LAT1_MAP: [char; N] = {
     }
     a
 };
+
+lazy_static! {
+    pub static ref MAPS: HashMap<&'static str, [char; 256]> = {
+        let mut m = HashMap::new();
+        m.insert("B", LAT1_MAP);
+        m.insert("0", VT100_MAP);
+        m.insert("U", IBMPC_MAP);
+        m.insert("V", VAX42_MAP);
+        m
+    };
+}

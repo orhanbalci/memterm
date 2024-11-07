@@ -48,7 +48,7 @@ pub trait ParserListener {
     fn index(&mut self);
     fn linefeed(&mut self);
     fn reverse_index(&mut self);
-    fn set_tab_stop(&self);
+    fn set_tab_stop(&mut self);
     fn save_cursor(&self);
     fn restore_cursor(&self);
     fn shift_out(&mut self);

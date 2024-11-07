@@ -27,7 +27,7 @@ impl ParserListener for ParserPrinter {
         println!("reverse_index");
     }
 
-    fn set_tab_stop(&self) {
+    fn set_tab_stop(&mut self) {
         println!("set_tab_stop");
     }
 

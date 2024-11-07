@@ -368,8 +368,9 @@ impl<'a> ParserListener for Screen<'a> {
         }
     }
 
-    fn set_tab_stop(&self) {
-        todo!()
+    // Set a horizontal tab stop at cursor position.
+    fn set_tab_stop(&mut self) {
+        self.tabstops.insert(self.cursor.x);
     }
 
     fn save_cursor(&self) {

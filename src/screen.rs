@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use unicode_width::UnicodeWidthStr;
 
 use crate::charset::{LAT1_MAP, MAPS, VT100_MAP};
-use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM};
+use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, LNM};
 use crate::parser_listener::ParserListener;
 
 #[derive(Clone)]
@@ -336,8 +336,12 @@ impl<'a> ParserListener for Screen<'a> {
         }
     }
 
-    fn linefeed(&self) {
-        todo!()
+    // Perform an index and, if LNM is set, a  carriage return.
+    fn linefeed(&mut self) {
+        self.index();
+        if self.mode.contains(&LNM) {
+            self.cariage_return();
+        }
     }
 
     fn reverse_index(&self) {

@@ -19,7 +19,7 @@ impl ParserListener for ParserPrinter {
         println!("index");
     }
 
-    fn linefeed(&self) {
+    fn linefeed(&mut self) {
         println!("linefeed");
     }
 

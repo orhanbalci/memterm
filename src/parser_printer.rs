@@ -15,7 +15,7 @@ impl ParserListener for ParserPrinter {
         println!("reset");
     }
 
-    fn index(&self) {
+    fn index(&mut self) {
         println!("index");
     }
 

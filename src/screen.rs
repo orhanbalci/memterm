@@ -1,4 +1,5 @@
 use std::collections::btree_map::Keys;
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
@@ -9,6 +10,7 @@ use crate::charset::{LAT1_MAP, MAPS, VT100_MAP};
 use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM};
 use crate::parser_listener::ParserListener;
 
+#[derive(Clone)]
 pub struct CharOpts {
     pub data: String,
     pub fg: String,
@@ -305,8 +307,33 @@ impl<'a> ParserListener for Screen<'a> {
         self.saved_columns = None
     }
 
-    fn index(&self) {
-        todo!()
+    /// Move the cursor down one line in the same column. If the
+    /// cursor is at the last line, create a new line at the bottom.
+    fn index(&mut self) {
+        let Margins { top, bottom } = self
+            .margins
+            .or(Some(Margins { top: 0, bottom: self.lines - 1 }))
+            .expect("unexpected margin found");
+
+        if self.cursor.y == bottom {
+            // TODO: mark only the lines within margins?
+            self.dirty.extend(0..self.lines);
+            let mut new_buffer: HashMap<u32, HashMap<u32, CharOpts>> = HashMap::new();
+
+            self.buffer.iter().for_each(|(&outer_key, inner_map)| {
+                if outer_key >= top {
+                    new_buffer.insert(outer_key + 1, (*inner_map).clone());
+                } else if outer_key < bottom {
+                    new_buffer.insert(outer_key + 1, (*inner_map).clone());
+                }
+                new_buffer.insert(outer_key, (*inner_map).clone());
+            });
+            new_buffer.remove(&bottom);
+            new_buffer.insert(bottom, HashMap::new());
+            self.buffer = new_buffer;
+        } else {
+            self.cursor_down(None);
+        }
     }
 
     fn linefeed(&self) {

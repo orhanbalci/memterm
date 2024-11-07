@@ -45,7 +45,7 @@ pub trait ParserListener {
     fn alignment_display(&self);
     fn define_charset(&mut self, code: &str, mode: &str);
     fn reset(&mut self);
-    fn index(&self);
+    fn index(&mut self);
     fn linefeed(&self);
     fn reverse_index(&self);
     fn set_tab_stop(&self);

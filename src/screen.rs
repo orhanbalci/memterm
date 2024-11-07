@@ -57,8 +57,8 @@ pub struct Margins {
 /// A container for savepoint, created on :data:`~pyte.escape.DECSC`.
 pub struct Savepoint {
     pub cursor: Cursor,
-    pub g0_charset: String,
-    pub g1_charset: String,
+    pub g0_charset: [char; 256],
+    pub g1_charset: [char; 256],
     pub charset: Charset,
     pub origin: bool,
     pub wrap: bool,
@@ -79,7 +79,7 @@ pub enum Charset {
     G1,
 }
 
-pub struct Screen<'a> {
+pub struct Screen {
     pub savepoints: Vec<Savepoint>,
     pub columns: u32,
     pub lines: u32,
@@ -90,20 +90,20 @@ pub struct Screen<'a> {
     pub title: String,
     pub icon_name: String,
     pub charset: Charset,
-    pub g0_charset: &'a [char; 256],
-    pub g1_charset: &'a [char; 256],
+    pub g0_charset: [char; 256],
+    pub g1_charset: [char; 256],
     pub tabstops: HashSet<u32>,
     pub cursor: Cursor,
     pub saved_columns: Option<u32>,
 }
 
-impl<'a> Display for Screen<'a> {
+impl Display for Screen {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("Screen ({}, {})", self.columns, self.lines))
     }
 }
 
-impl<'a> Screen<'a> {
+impl Screen {
     ///A list of screen lines as unicode strings.
     pub fn display(&mut self) -> Vec<String> {
         let render = |line: &mut HashMap<u32, CharOpts>| -> String {
@@ -234,9 +234,28 @@ impl<'a> Screen<'a> {
             self.cursor_position(None, None);
         }
     }
+
+    // Ensure the cursor is within horizontal screen bounds."""
+    pub fn ensure_hbounds(&mut self) {
+        self.cursor.x = u32::min(u32::max(0, self.cursor.x), self.columns - 1)
+    }
+
+    // Ensure the cursor is within vertical screen bounds.
+    pub fn ensure_vbounds(&mut self, use_margins: Option<bool>) {
+        let (top, bottom) = if (use_margins.unwrap_or(false) || self.mode.contains(&DECOM))
+            && self.margins.is_some()
+        {
+            let Margins { top, bottom } = self.margins.unwrap();
+            (top, bottom)
+        } else {
+            (0, self.lines - 1)
+        };
+
+        self.cursor.y = u32::min(u32::max(top, self.cursor.y), bottom)
+    }
 }
 
-impl<'a> ParserListener for Screen<'a> {
+impl ParserListener for Screen {
     fn alignment_display(&self) {
         todo!()
     }
@@ -256,11 +275,13 @@ impl<'a> ParserListener for Screen<'a> {
             if mode == "(" {
                 self.g0_charset = MAPS
                     .get(code)
-                    .expect(&format!("unexpected character map key {}", code));
+                    .expect(&format!("unexpected character map key {}", code))
+                    .clone();
             } else if mode == ")" {
                 self.g1_charset = MAPS
                     .get(code)
-                    .expect(&format!("unexpected character map key {}", code));
+                    .expect(&format!("unexpected character map key {}", code))
+                    .clone();
             }
         }
     }
@@ -289,8 +310,8 @@ impl<'a> ParserListener for Screen<'a> {
         self.icon_name = "".to_owned();
 
         self.charset = Charset::G0;
-        self.g0_charset = &LAT1_MAP;
-        self.g1_charset = &VT100_MAP;
+        self.g0_charset = LAT1_MAP.clone();
+        self.g1_charset = VT100_MAP.clone();
 
         // From ``man terminfo`` -- "... hardware tabs are initially
         // set every `n` spaces when the terminal is powered up. Since
@@ -379,16 +400,43 @@ impl<'a> ParserListener for Screen<'a> {
     fn save_cursor(&mut self) {
         self.savepoints.push(Savepoint {
             cursor: self.cursor.clone(),
-            g0_charset: self.g0_charset.iter().collect(),
-            g1_charset: self.g1_charset.iter().collect(),
+            g0_charset: self.g0_charset.clone(),
+            g1_charset: self.g1_charset.clone(),
             charset: self.charset,
             origin: self.mode.contains(&DECOM),
             wrap: self.mode.contains(&DECAWM),
         })
     }
 
-    fn restore_cursor(&self) {
-        todo!()
+    // Set the current cursor position to whatever cursor is on top
+    // of the stack.
+    fn restore_cursor(&mut self) {
+        if self.savepoints.len() > 0 {
+            let savepoint = self
+                .savepoints
+                .pop()
+                .expect("can not retrieve last savepoint");
+
+            self.g0_charset = savepoint.g0_charset.clone();
+            self.g1_charset = savepoint.g1_charset.clone();
+            self.charset = savepoint.charset;
+
+            if savepoint.origin {
+                self.set_mode(&[DECOM], false)
+            }
+            if savepoint.wrap {
+                self.set_mode(&[DECAWM], false)
+            }
+
+            self.cursor = savepoint.cursor;
+            self.ensure_hbounds();
+            self.ensure_vbounds(Some(true));
+        } else {
+            // If nothing was saved, the cursor moves to home position;
+            // origin mode is reset. :todo: DECAWM?
+            self.reset_mode(&[DECOM], false);
+            self.cursor_position(None, None);
+        }
     }
 
     /// Select ``G1`` character set.
@@ -454,7 +502,7 @@ impl<'a> ParserListener for Screen<'a> {
         todo!()
     }
 
-    fn cursor_position(&self, line: Option<u32>, character: Option<u32>) {
+    fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>) {
         todo!()
     }
 

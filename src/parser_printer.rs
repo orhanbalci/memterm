@@ -35,7 +35,7 @@ impl ParserListener for ParserPrinter {
         println!("save_cursor");
     }
 
-    fn restore_cursor(&self) {
+    fn restore_cursor(&mut self) {
         println!("restore_cursor");
     }
 
@@ -91,7 +91,7 @@ impl ParserListener for ParserPrinter {
         println!("cursor to column");
     }
 
-    fn cursor_position(&self, line: Option<u32>, character: Option<u32>) {
+    fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>) {
         println!("cursor position");
     }
 

@@ -50,7 +50,7 @@ pub trait ParserListener {
     fn reverse_index(&mut self);
     fn set_tab_stop(&mut self);
     fn save_cursor(&mut self);
-    fn restore_cursor(&self);
+    fn restore_cursor(&mut self);
     fn shift_out(&mut self);
     fn shift_in(&mut self);
 
@@ -71,7 +71,7 @@ pub trait ParserListener {
     fn cursor_down1(&self, count: Option<u32>);
     fn cursor_up1(&self, count: Option<u32>);
     fn cursor_to_column(&self, character: Option<u32>);
-    fn cursor_position(&self, line: Option<u32>, character: Option<u32>);
+    fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>);
     fn erase_in_display(&self, erase_page: Option<u32>);
     fn erase_in_line(&self, erase_line: Option<u32>);
     fn insert_lines(&self, count: Option<u32>);

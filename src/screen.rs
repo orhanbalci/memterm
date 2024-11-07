@@ -344,8 +344,28 @@ impl<'a> ParserListener for Screen<'a> {
         }
     }
 
-    fn reverse_index(&self) {
-        todo!()
+    // Move the cursor up one line in the same column. If the cursor
+    // at the first line, create a new line at the top.
+    fn reverse_index(&mut self) {
+        let (top, bottom) = match &self.margins {
+            Some(margins) => (margins.top, margins.bottom),
+            None => (0, self.lines - 1),
+        };
+
+        if self.cursor.y == top {
+            // TODO: mark only the lines within margins?
+            for i in 0..self.lines {
+                self.dirty.insert(i);
+            }
+            for y in (top + 1..=bottom).rev() {
+                if let Some(line) = self.buffer.get(&(y - 1)).cloned() {
+                    self.buffer.insert(y, line);
+                }
+            }
+            self.buffer.remove(&top);
+        } else {
+            self.cursor_up(None);
+        }
     }
 
     fn set_tab_stop(&self) {

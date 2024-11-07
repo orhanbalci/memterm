@@ -23,7 +23,7 @@ impl ParserListener for ParserPrinter {
         println!("linefeed");
     }
 
-    fn reverse_index(&self) {
+    fn reverse_index(&mut self) {
         println!("reverse_index");
     }
 

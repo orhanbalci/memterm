@@ -39,6 +39,7 @@ impl Default for CharOpts {
     }
 }
 
+#[derive(Clone)]
 pub struct Cursor {
     pub x: u32,
     pub y: u32,
@@ -58,7 +59,7 @@ pub struct Savepoint {
     pub cursor: Cursor,
     pub g0_charset: String,
     pub g1_charset: String,
-    pub charset: u32,
+    pub charset: Charset,
     pub origin: bool,
     pub wrap: bool,
 }
@@ -72,6 +73,7 @@ lazy_static! {
     };
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Charset {
     G0,
     G1,
@@ -373,8 +375,16 @@ impl<'a> ParserListener for Screen<'a> {
         self.tabstops.insert(self.cursor.x);
     }
 
-    fn save_cursor(&self) {
-        todo!()
+    //  Push the current cursor position onto the stack.
+    fn save_cursor(&mut self) {
+        self.savepoints.push(Savepoint {
+            cursor: self.cursor.clone(),
+            g0_charset: self.g0_charset.iter().collect(),
+            g1_charset: self.g1_charset.iter().collect(),
+            charset: self.charset,
+            origin: self.mode.contains(&DECOM),
+            wrap: self.mode.contains(&DECAWM),
+        })
     }
 
     fn restore_cursor(&self) {

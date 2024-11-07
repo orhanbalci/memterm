@@ -31,7 +31,7 @@ impl ParserListener for ParserPrinter {
         println!("set_tab_stop");
     }
 
-    fn save_cursor(&self) {
+    fn save_cursor(&mut self) {
         println!("save_cursor");
     }
 

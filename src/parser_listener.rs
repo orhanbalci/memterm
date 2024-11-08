@@ -70,10 +70,10 @@ pub trait ParserListener {
     fn cursor_back(&mut self, count: Option<u32>);
     fn cursor_down1(&mut self, count: Option<u32>);
     fn cursor_up1(&mut self, count: Option<u32>);
-    fn cursor_to_column(&self, character: Option<u32>);
+    fn cursor_to_column(&mut self, character: Option<u32>);
     fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>);
     fn erase_in_display(&self, erase_page: Option<u32>);
-    fn erase_in_line(&self, erase_line: Option<u32>);
+    fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>);
     fn insert_lines(&self, count: Option<u32>);
     fn delete_lines(&self, count: Option<u32>);
     fn delete_characters(&self, count: Option<u32>);
@@ -199,11 +199,14 @@ pub trait ParserListener {
             } else {
                 None
             }),
-            ec if ec == EL => self.erase_in_line(if !params.is_empty() {
-                Some(params[0])
-            } else {
-                None
-            }),
+            ec if ec == EL => self.erase_in_line(
+                if !params.is_empty() {
+                    Some(params[0])
+                } else {
+                    None
+                },
+                None,
+            ),
             ec if ec == IL => self.insert_lines(if !params.is_empty() {
                 Some(params[0])
             } else {

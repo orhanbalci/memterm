@@ -87,7 +87,7 @@ impl ParserListener for ParserPrinter {
         println!("cursor up1");
     }
 
-    fn cursor_to_column(&self, character: Option<u32>) {
+    fn cursor_to_column(&mut self, character: Option<u32>) {
         println!("cursor to column");
     }
 
@@ -99,7 +99,7 @@ impl ParserListener for ParserPrinter {
         println!("erase in display");
     }
 
-    fn erase_in_line(&self, erase_line: Option<u32>) {
+    fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>) {
         println!("erase in line");
     }
 

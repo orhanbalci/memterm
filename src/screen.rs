@@ -571,20 +571,57 @@ impl ParserListener for Screen {
         self.cariage_return();
     }
 
-    fn cursor_to_column(&self, character: Option<u32>) {
-        todo!()
+    fn cursor_to_column(&mut self, character: Option<u32>) {
+        self.cursor.x = character.unwrap_or(1) - 1;
+        self.ensure_hbounds();
     }
 
-    fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>) {
-        todo!()
+    fn cursor_position(&mut self, line: Option<u32>, column: Option<u32>) {
+        let column = column.unwrap_or(1) - 1;
+        let mut line = line.unwrap_or(1) - 1;
+
+        // If origin mode (DECOM) is set, line number is relative to the top scrolling margin.
+        if let Some(margins) = &self.margins {
+            if self.mode.contains(&DECOM) {
+                line += margins.top;
+
+                // Cursor is not allowed to move out of the scrolling region.
+                if line < margins.top || line > margins.bottom {
+                    return;
+                }
+            }
+        }
+
+        self.cursor.x = column;
+        self.cursor.y = line;
+        self.ensure_hbounds();
+        self.ensure_vbounds(None);
     }
 
     fn erase_in_display(&self, erase_page: Option<u32>) {
         todo!()
     }
 
-    fn erase_in_line(&self, erase_line: Option<u32>) {
-        todo!()
+    fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>) {
+        self.dirty.insert(self.cursor.y);
+
+        let how = how.unwrap_or(0);
+        let interval: Box<dyn Iterator<Item = u32>> = match how {
+            0 => Box::new(self.cursor.x..self.columns),
+            1 => Box::new(0..=self.cursor.x),
+            2 => Box::new(0..self.columns),
+            _ => {
+                panic!("invalid eras_in_line parameter");
+            } // Handle invalid `how` values if necessary
+        };
+
+        let line = self
+            .buffer
+            .get_mut(&self.cursor.y)
+            .expect("can not retrieve line");
+        for x in interval {
+            line.insert(x, self.cursor.attr.clone());
+        }
     }
 
     fn insert_lines(&self, count: Option<u32>) {

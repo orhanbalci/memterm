@@ -57,7 +57,7 @@ pub trait ParserListener {
     // basic escape code actions
     fn bell(&mut self);
     fn backspace(&mut self);
-    fn tab(&self);
+    fn tab(&mut self);
     fn cariage_return(&mut self);
 
     fn draw(&self, input: &str);

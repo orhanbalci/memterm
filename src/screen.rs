@@ -453,13 +453,32 @@ impl ParserListener for Screen {
     fn bell(&mut self) {}
 
     /// Move cursor to the left one or keep it in its position if
-    ///       it's at the beginning of the line already.
+    /// it's at the beginning of the line already.
     fn backspace(&mut self) {
         self.cursor_back(None);
     }
 
-    fn tab(&self) {
-        todo!()
+    /// Move to the next tab space, or the end of the screen if there
+    /// aren't anymore left.
+    fn tab(&mut self) {
+        // Convert HashSet to a Vec
+        let mut vec: Vec<_> = self.tabstops.iter().collect();
+        // Sort the Vec
+        vec.sort();
+
+        let mut column: u32 = 0;
+        for &stop in vec.iter() {
+            if self.cursor.x < *stop {
+                column = *stop;
+                break;
+            }
+        }
+
+        if column == 0 {
+            column = self.columns - 1;
+        }
+
+        self.cursor.x = column;
     }
 
     /// Move the cursor to the beginning of the current line.

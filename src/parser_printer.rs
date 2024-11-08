@@ -47,7 +47,7 @@ impl ParserListener for ParserPrinter {
         println!("backspace");
     }
 
-    fn tab(&self) {
+    fn tab(&mut self) {
         println!("tab");
     }
 

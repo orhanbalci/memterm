@@ -506,7 +506,7 @@ impl ParserListener for Screen {
             .buffer
             .get_mut(&self.cursor.y)
             .expect("can not retrieve line");
-        for x in (self.cursor.x - 1..self.columns).rev() {
+        for x in (self.cursor.x..self.columns + 1).rev() {
             if x + count <= self.columns {
                 let x_val = line.get(&x);
                 match x_val {
@@ -522,12 +522,27 @@ impl ParserListener for Screen {
         }
     }
 
-    fn cursor_up(&self, count: Option<u32>) {
-        todo!()
+    fn cursor_up(&mut self, count: Option<u32>) {
+        let top = match &self.margins {
+            Some(margins) => margins.top,
+            None => 0,
+        };
+        let count = count.unwrap_or(1);
+        self.cursor.y = self.cursor.y.saturating_sub(count).max(top);
     }
 
-    fn cursor_down(&self, count: Option<u32>) {
-        todo!()
+    fn cursor_down(&mut self, count: Option<u32>) {
+        let bottom = match &self.margins {
+            Some(margins) => margins.bottom,
+            None => self.lines - 1,
+        };
+        let count = count.unwrap_or(1);
+        self.cursor.y = (self.cursor.y + count).min(bottom);
+    }
+
+    fn cursor_down1(&mut self, count: Option<u32>) {
+        self.cursor_down(count);
+        self.cariage_return();
     }
 
     fn cursor_forward(&self, count: Option<u32>) {
@@ -551,12 +566,9 @@ impl ParserListener for Screen {
         self.ensure_hbounds();
     }
 
-    fn cursor_down1(&self, count: Option<u32>) {
-        todo!()
-    }
-
-    fn cursor_up1(&self, count: Option<u32>) {
-        todo!()
+    fn cursor_up1(&mut self, count: Option<u32>) {
+        self.cursor_up(count);
+        self.cariage_return();
     }
 
     fn cursor_to_column(&self, character: Option<u32>) {

@@ -63,11 +63,11 @@ impl ParserListener for ParserPrinter {
         println!("insert_characters");
     }
 
-    fn cursor_up(&self, count: Option<u32>) {
+    fn cursor_up(&mut self, count: Option<u32>) {
         println!("cursor up");
     }
 
-    fn cursor_down(&self, count: Option<u32>) {
+    fn cursor_down(&mut self, count: Option<u32>) {
         println!("cursor down");
     }
 
@@ -79,11 +79,11 @@ impl ParserListener for ParserPrinter {
         println!("cursor back");
     }
 
-    fn cursor_down1(&self, count: Option<u32>) {
+    fn cursor_down1(&mut self, count: Option<u32>) {
         println!("cursor down");
     }
 
-    fn cursor_up1(&self, count: Option<u32>) {
+    fn cursor_up1(&mut self, count: Option<u32>) {
         println!("cursor up1");
     }
 

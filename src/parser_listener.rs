@@ -64,12 +64,12 @@ pub trait ParserListener {
 
     //csi commands
     fn insert_characters(&mut self, count: Option<u32>);
-    fn cursor_up(&self, count: Option<u32>);
-    fn cursor_down(&self, count: Option<u32>);
+    fn cursor_up(&mut self, count: Option<u32>);
+    fn cursor_down(&mut self, count: Option<u32>);
     fn cursor_forward(&self, count: Option<u32>);
     fn cursor_back(&mut self, count: Option<u32>);
-    fn cursor_down1(&self, count: Option<u32>);
-    fn cursor_up1(&self, count: Option<u32>);
+    fn cursor_down1(&mut self, count: Option<u32>);
+    fn cursor_up1(&mut self, count: Option<u32>);
     fn cursor_to_column(&self, character: Option<u32>);
     fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>);
     fn erase_in_display(&self, erase_page: Option<u32>);

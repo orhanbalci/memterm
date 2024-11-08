@@ -269,7 +269,7 @@ impl ParserListener for Screen {
     /// * `mode` - if ``"("`` ``G0`` charset is defined, if
     ///  ``")"`` we operate on ``G1``.
     ///
-    /// <div class="warning">User-defined charsets are currently not supported.</div>
+    /// **Warning:** User-defined charsets are currently not supported.
     fn define_charset(&mut self, code: &str, mode: &str) {
         if MAPS.keys().any(|&a| a == code) {
             if mode == "(" {
@@ -288,16 +288,15 @@ impl ParserListener for Screen {
 
     /// Reset the terminal to its initial state.
     ///
-    /// * Scrolling margins are reset to screen boundaries.
-    /// * Cursor is moved to home location ``(0, 0)`` and its
-    ///   attributes are set to defaults.
-    /// * Screen is cleared, each character is reset to default char
-    /// * Tabstops are reset to "every eight columns".
-    /// * All lines are marked as dirty.
+    /// - Scrolling margins are reset to screen boundaries.
+    /// - Cursor is moved to home location `(0, 0)` and its attributes are set to defaults.
+    /// - Screen is cleared, each character is reset to default char.
+    /// - Tabstops are reset to "every eight columns".
+    /// - All lines are marked as dirty.
     ///
-    /// <div class="warning">Neither VT220 nor VT102 manuals mention that terminal modes
-    ///    and tabstops should be reset as well, thanks to
-    ///    <code>xterm</code> -- we now know that.</div>
+    /// **Warning**
+    /// Neither VT220 nor VT102 manuals mention that terminal modes and tabstops should be reset as well.
+    /// Thanks to `xterm` -- we now know that.
     fn reset(&mut self) {
         self.dirty.clear();
         self.dirty.extend(0..self.lines);
@@ -408,8 +407,8 @@ impl ParserListener for Screen {
         })
     }
 
-    // Set the current cursor position to whatever cursor is on top
-    // of the stack.
+    /// Set the current cursor position to whatever cursor is on top
+    /// of the stack.
     fn restore_cursor(&mut self) {
         if self.savepoints.len() > 0 {
             let savepoint = self
@@ -652,10 +651,22 @@ impl ParserListener for Screen {
         todo!()
     }
 
-    // Set (enable) a given list of modes.
-    // :param list modes: modes to set, where each mode is a constant
-    //    from :mod:`pyte.modes`.
-
+    /// Set (enable) a given list of modes.
+    ///
+    /// # Arguments
+    ///
+    /// - `modes`: A list of modes to set, where each mode is a constant from the `pyte::modes` module.
+    ///
+    /// # Example
+    ///
+    /// ```rust, ignore
+    /// let modes = vec![Mode::Insert, Mode::Replace];
+    /// set_modes(modes);
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// Each mode should be a constant from the `modes` module.
     fn set_mode(&mut self, modes: &[u32], private: bool) {
         // mode_list = list(modes)
         // Private mode codes are shifted, to be distinguished from non
@@ -702,10 +713,22 @@ impl ParserListener for Screen {
         }
     }
 
-    // Reset (disable) a given list of modes.
-    // :param list modes: modes to reset -- hopefully, each mode is a
-    //                   constant from :mod:`pyte.modes`.
-    //
+    /// Reset (disable) a given list of modes.
+    ///
+    /// # Arguments
+    ///
+    /// - `modes`: A list of modes to reset. Each mode should ideally be a constant from the `pyte::modes` module.
+    ///
+    /// # Example
+    ///
+    /// ```rust, ignore
+    /// let modes = vec![Mode::Insert, Mode::Replace];
+    /// reset_modes(modes);
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// Make sure that each mode is a constant from the `modes` module.
     fn reset_mode(&mut self, modes: &[u32], is_private: bool) {
         let mut mode_list = Vec::from(modes);
         // Private mode codes are shifted, to be distinguished from non
@@ -762,14 +785,14 @@ impl ParserListener for Screen {
 
     /// Set terminal title.
     ///
-    /// <div class="warning">This is an XTerm extension supported by the Linux terminal.</div>
+    /// **Warning:** This is an XTerm extension supported by the Linux terminal.
     fn set_title(&mut self, title: &str) {
         self.title = title.to_owned();
     }
 
     /// Set icon name
     ///
-    /// <div class="warning">This is an XTerm extension supported by the Linux terminal.</div>
+    /// **Warning:** This is an XTerm extension supported by the Linux terminal.
     fn set_icon_name(&mut self, icon_name: &str) {
         self.icon_name = icon_name.to_owned();
     }

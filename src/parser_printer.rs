@@ -59,7 +59,7 @@ impl ParserListener for ParserPrinter {
         println!("draw");
     }
 
-    fn insert_characters(&self, count: Option<u32>) {
+    fn insert_characters(&mut self, count: Option<u32>) {
         println!("insert_characters");
     }
 

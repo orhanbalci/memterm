@@ -490,8 +490,36 @@ impl ParserListener for Screen {
         todo!()
     }
 
-    fn insert_characters(&self, count: Option<u32>) {
-        todo!()
+    /// Insert the indicated # of blank characters at the cursor
+    /// position. The cursor does not move and remains at the beginning
+    /// of the inserted blank characters. Data on the line is shifted
+    /// forward.
+    ///
+    /// # Arguments
+    ///
+    /// * `count` - number of characters to insert.
+    fn insert_characters(&mut self, count: Option<u32>) {
+        self.dirty.insert(self.cursor.y);
+
+        let count = count.unwrap_or(1);
+        let line = self
+            .buffer
+            .get_mut(&self.cursor.y)
+            .expect("can not retrieve line");
+        for x in (self.cursor.x - 1..self.columns).rev() {
+            if x + count <= self.columns {
+                let x_val = line.get(&x);
+                match x_val {
+                    Some(val) => {
+                        line.insert(x + count, val.clone());
+                    }
+                    None => {
+                        line.insert(x + count, CharOpts::default());
+                    }
+                }
+            }
+            line.insert(x, CharOpts::default());
+        }
     }
 
     fn cursor_up(&self, count: Option<u32>) {

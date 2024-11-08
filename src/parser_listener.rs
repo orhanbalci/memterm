@@ -63,7 +63,7 @@ pub trait ParserListener {
     fn draw(&self, input: &str);
 
     //csi commands
-    fn insert_characters(&self, count: Option<u32>);
+    fn insert_characters(&mut self, count: Option<u32>);
     fn cursor_up(&self, count: Option<u32>);
     fn cursor_down(&self, count: Option<u32>);
     fn cursor_forward(&self, count: Option<u32>);

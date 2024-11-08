@@ -1,3 +1,5 @@
+#![feature(iter_advance_by)]
+
 macro_rules! ascii {
     ($($xx:literal/$yy:literal), *) => {
         unsafe { std::str::from_utf8_unchecked(&[$(($xx << 4) + $yy),*]) }

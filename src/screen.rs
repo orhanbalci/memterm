@@ -449,12 +449,13 @@ impl ParserListener for Screen {
         self.charset = Charset::G0;
     }
 
-    fn bell(&self) {
-        todo!()
-    }
+    /// Bell stub -- the actual implementation should probably be by the end-user.
+    fn bell(&mut self) {}
 
-    fn backspace(&self) {
-        todo!()
+    /// Move cursor to the left one or keep it in its position if
+    ///       it's at the beginning of the line already.
+    fn backspace(&mut self) {
+        self.cursor_back(None);
     }
 
     fn tab(&self) {
@@ -486,8 +487,21 @@ impl ParserListener for Screen {
         todo!()
     }
 
-    fn cursor_back(&self, count: Option<u32>) {
-        todo!()
+    /// Move cursor left the indicated # of columns. Cursor stops
+    /// at left margin.
+    ///
+    /// # Arguements
+    ///
+    /// * `count` - number of columns to skip
+    fn cursor_back(&mut self, count: Option<u32>) {
+        // Handle the case when we've just drawn in the last column
+        // and would wrap the line on the next :meth:`draw()` call.
+        if self.cursor.x == self.columns {
+            self.cursor.x -= 1
+        }
+
+        self.cursor.x -= count.unwrap_or(1);
+        self.ensure_hbounds();
     }
 
     fn cursor_down1(&self, count: Option<u32>) {

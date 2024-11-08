@@ -54,9 +54,9 @@ pub trait ParserListener {
     fn shift_out(&mut self);
     fn shift_in(&mut self);
 
-    // basic esvape code actions
-    fn bell(&self);
-    fn backspace(&self);
+    // basic escape code actions
+    fn bell(&mut self);
+    fn backspace(&mut self);
     fn tab(&self);
     fn cariage_return(&mut self);
 
@@ -67,7 +67,7 @@ pub trait ParserListener {
     fn cursor_up(&self, count: Option<u32>);
     fn cursor_down(&self, count: Option<u32>);
     fn cursor_forward(&self, count: Option<u32>);
-    fn cursor_back(&self, count: Option<u32>);
+    fn cursor_back(&mut self, count: Option<u32>);
     fn cursor_down1(&self, count: Option<u32>);
     fn cursor_up1(&self, count: Option<u32>);
     fn cursor_to_column(&self, character: Option<u32>);

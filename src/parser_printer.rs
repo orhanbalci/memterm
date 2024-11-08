@@ -39,11 +39,11 @@ impl ParserListener for ParserPrinter {
         println!("restore_cursor");
     }
 
-    fn bell(&self) {
+    fn bell(&mut self) {
         println!("bell");
     }
 
-    fn backspace(&self) {
+    fn backspace(&mut self) {
         println!("backspace");
     }
 
@@ -75,7 +75,7 @@ impl ParserListener for ParserPrinter {
         println!("cursor forward");
     }
 
-    fn cursor_back(&self, count: Option<u32>) {
+    fn cursor_back(&mut self, count: Option<u32>) {
         println!("cursor back");
     }
 

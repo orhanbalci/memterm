@@ -597,8 +597,40 @@ impl ParserListener for Screen {
         self.ensure_vbounds(None);
     }
 
-    fn erase_in_display(&self, erase_page: Option<u32>) {
-        todo!()
+    /// Erases display in a specific way.
+    ///
+    /// Character attributes are set to cursor attributes.
+    ///
+    /// # Parameters
+    ///
+    /// - `how`: Defines the way the line should be erased in:
+    ///     - `0`: Erases from cursor to end of screen, including cursor position.
+    ///     - `1`: Erases from beginning of screen to cursor, including cursor position.
+    ///     - `2` and `3`: Erases complete display. All lines are erased and changed to single-width. Cursor does not move.
+    /// - `private`: When `true`, only characters marked as erasable are affected. **Not implemented**.
+    ///
+    /// # Version
+    ///
+    /// This method accepts any number of positional arguments as some `clear` implementations include a `;` after the first parameter causing the stream to assume a `0` second parameter.
+    fn erase_in_display(&mut self, how: Option<u32>, private: Option<bool>) {
+        let interval: std::ops::Range<u32> = match how {
+            Some(0) => self.cursor.y + 1..self.lines,
+            Some(1) => 0..self.cursor.y,
+            Some(2 | 3) => 0..self.lines,
+            _ => 0..0, // Handle invalid `how` values
+        };
+
+        self.dirty.extend(interval.clone());
+        for y in interval.clone() {
+            let line = &mut self.buffer.get_mut(&y).expect("can not retrieve line");
+            for x in 0..line.len() {
+                line.insert(x as u32, self.cursor.attr.clone());
+            }
+        }
+
+        if how == Some(0) || how == Some(1) {
+            self.erase_in_line(how, None);
+        }
     }
 
     fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>) {
@@ -686,7 +718,7 @@ impl ParserListener for Screen {
         if mode_list.iter().any(|m| *m == DECCOLM) {
             self.saved_columns = Some(self.columns);
             self.resize(None, Some(132));
-            self.erase_in_display(Some(2));
+            self.erase_in_display(Some(2), None);
             self.cursor_position(None, None);
         }
 
@@ -752,7 +784,7 @@ impl ParserListener for Screen {
         if mode_list.iter().any(|m| *m == DECCOLM) {
             self.saved_columns = Some(self.columns);
             self.resize(None, Some(132));
-            self.erase_in_display(Some(2));
+            self.erase_in_display(Some(2), None);
             self.cursor_position(None, None);
         }
 

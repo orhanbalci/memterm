@@ -95,7 +95,7 @@ impl ParserListener for ParserPrinter {
         println!("cursor position");
     }
 
-    fn erase_in_display(&self, erase_page: Option<u32>) {
+    fn erase_in_display(&mut self, how: Option<u32>, private: Option<bool>) {
         println!("erase in display");
     }
 

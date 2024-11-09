@@ -1,5 +1,3 @@
-use std::collections::btree_map::Keys;
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
@@ -655,8 +653,34 @@ impl ParserListener for Screen {
         }
     }
 
-    fn insert_lines(&self, count: Option<u32>) {
-        todo!()
+    /// Insert the indicated number of lines at the line with the cursor.
+    /// Lines displayed at and below the cursor move down. Lines moved
+    /// past the bottom margin are lost.
+    ///
+    /// # Parameters
+    ///
+    /// - `count`: Number of lines to insert.
+    fn insert_lines(&mut self, count: Option<u32>) {
+        let count = count.unwrap_or(1);
+        let Margins { top, bottom } = self
+            .margins
+            .unwrap_or(Margins { top: 0, bottom: self.lines - 1 });
+
+        // If cursor is outside scrolling margins, do nothing.
+        if top <= self.cursor.y && self.cursor.y <= bottom {
+            self.dirty.extend(self.cursor.y..self.lines);
+            for y in (self.cursor.y as u32..=bottom as u32).rev() {
+                if y + count <= bottom as u32 {
+                    if let Some(line) = self.buffer.remove(&y) {
+                        self.buffer.insert(y + count, line);
+                    }
+                } else {
+                    self.buffer.remove(&y);
+                }
+            }
+
+            self.cariage_return();
+        }
     }
 
     fn delete_lines(&self, count: Option<u32>) {

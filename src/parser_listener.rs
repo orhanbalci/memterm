@@ -74,7 +74,7 @@ pub trait ParserListener {
     fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>);
     fn erase_in_display(&mut self, how: Option<u32>, private: Option<bool>);
     fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>);
-    fn insert_lines(&self, count: Option<u32>);
+    fn insert_lines(&mut self, count: Option<u32>);
     fn delete_lines(&self, count: Option<u32>);
     fn delete_characters(&self, count: Option<u32>);
     fn erase_characters(&self, count: Option<u32>);

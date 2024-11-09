@@ -8,7 +8,7 @@ impl ParserListener for ParserPrinter {
     }
 
     fn define_charset(&mut self, code: &str, mode: &str) {
-        println!("defining charset");
+        println!("defining charset code {} mode {}", code, mode);
     }
 
     fn reset(&mut self) {
@@ -56,39 +56,39 @@ impl ParserListener for ParserPrinter {
     }
 
     fn draw(&self, input: &str) {
-        println!("draw");
+        println!("draw input {}", input);
     }
 
     fn insert_characters(&mut self, count: Option<u32>) {
-        println!("insert_characters");
+        println!("insert_characters count {:?}", count);
     }
 
     fn cursor_up(&mut self, count: Option<u32>) {
-        println!("cursor up");
+        println!("cursor up count {:?} ", count);
     }
 
     fn cursor_down(&mut self, count: Option<u32>) {
-        println!("cursor down");
+        println!("cursor down count {:?}", count);
     }
 
     fn cursor_forward(&self, count: Option<u32>) {
-        println!("cursor forward");
+        println!("cursor forward count {:?}", count);
     }
 
     fn cursor_back(&mut self, count: Option<u32>) {
-        println!("cursor back");
+        println!("cursor back count {:?}", count);
     }
 
     fn cursor_down1(&mut self, count: Option<u32>) {
-        println!("cursor down");
+        println!("cursor down count {:?}", count);
     }
 
     fn cursor_up1(&mut self, count: Option<u32>) {
-        println!("cursor up1");
+        println!("cursor up1 count {:?}", count);
     }
 
     fn cursor_to_column(&mut self, character: Option<u32>) {
-        println!("cursor to column");
+        println!("cursor to column character {:?}", character);
     }
 
     fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>) {
@@ -103,7 +103,7 @@ impl ParserListener for ParserPrinter {
         println!("erase in line");
     }
 
-    fn insert_lines(&self, count: Option<u32>) {
+    fn insert_lines(&mut self, count: Option<u32>) {
         println!("insert lines")
     }
 

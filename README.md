@@ -1,6 +1,4 @@
-Here's the updated README with your username and organization details:
 
-```markdown
 # memterm
 
 **memterm** is a Rust virtual terminal emulator, offering a lightweight and efficient implementation for handling ANSI escape sequences and emulating terminal behavior. Inspired by the Python library [pyte](https://github.com/selectel/pyte), it provides a robust and customizable terminal interface for your Rust applications.
@@ -103,5 +101,4 @@ Contributions are encouraged! You can:
 
 ---
 
-Developed with ❤️ by [orhanbalci].
-```
+Developed with ❤️ by [orhanbalci](https://github.com/orhanbalci)

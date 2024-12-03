@@ -1,5 +1,5 @@
 
-# memterm
+![memtermlogo](https://github.com/orhanbalci/memterm/blob/main/assets/memterm.png?raw=true)
 
 **memterm** is a Rust virtual terminal emulator, offering a lightweight and efficient implementation for handling ANSI escape sequences and emulating terminal behavior. Inspired by the Python library [pyte](https://github.com/selectel/pyte), it provides a robust and customizable terminal interface for your Rust applications.
 

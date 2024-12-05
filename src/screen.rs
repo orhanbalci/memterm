@@ -683,8 +683,27 @@ impl ParserListener for Screen {
         }
     }
 
-    fn delete_lines(&self, count: Option<u32>) {
-        todo!()
+    fn delete_lines(&mut self, count: Option<u32>) {
+        let count = count.unwrap_or(1);
+        let Margins { top, bottom } = self
+            .margins
+            .unwrap_or(Margins { top: 0, bottom: self.lines - 1 });
+
+        // If cursor is outside scrolling margins -- do nothing.
+        if top <= self.cursor.y && self.cursor.y <= bottom {
+            self.dirty.extend(self.cursor.y..self.lines);
+            for y in self.cursor.y..=bottom {
+                if y + count <= bottom {
+                    if let Some(line) = self.buffer.remove(&(y + count)) {
+                        self.buffer.insert(y, line);
+                    }
+                } else {
+                    self.buffer.remove(&y);
+                }
+            }
+
+            self.cariage_return();
+        }
     }
 
     fn delete_characters(&self, count: Option<u32>) {

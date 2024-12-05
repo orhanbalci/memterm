@@ -732,10 +732,28 @@ impl ParserListener for Screen {
         }
     }
 
-    fn erase_characters(&self, count: Option<u32>) {
-        todo!()
-    }
+    /// Erase the indicated number of characters, starting with the
+    /// character at the cursor position. Character attributes are set
+    /// to cursor attributes. The cursor remains in the same position.
+    ///
+    /// # Parameters
+    /// - `count`: Number of characters to erase.
+    ///
+    /// # Note
+    /// Using cursor attributes for character attributes may seem
+    /// illogical, but if you recall that a terminal emulator emulates
+    /// a typewriter, it starts to make sense. The only way a typewriter
+    /// could erase a character is by typing over it.
+    fn erase_characters(&mut self, count: Option<u32>) {
+        self.dirty.insert(self.cursor.y);
+        let count = count.unwrap_or(1);
 
+        if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
+            for x in self.cursor.x..std::cmp::min(self.cursor.x + count, self.columns) {
+                line.insert(x, self.cursor.attr.clone());
+            }
+        }
+    }
     fn report_device_attributes(&self, attribute: Option<u32>) {
         todo!()
     }

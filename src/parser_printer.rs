@@ -119,7 +119,7 @@ impl ParserListener for ParserPrinter {
         println!("erase characters");
     }
 
-    fn report_device_attributes(&self, attribute: Option<u32>) {
+    fn report_device_attributes(&mut self, mode: Option<u32>, private: Option<bool>) {
         println!("report device attributes");
     }
 

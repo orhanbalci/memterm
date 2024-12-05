@@ -78,7 +78,7 @@ pub trait ParserListener {
     fn delete_lines(&mut self, count: Option<u32>);
     fn delete_characters(&mut self, count: Option<u32>);
     fn erase_characters(&mut self, count: Option<u32>);
-    fn report_device_attributes(&self, attribute: Option<u32>);
+    fn report_device_attributes(&mut self, mode: Option<u32>, private: Option<bool>);
     fn cursor_to_line(&self, count: Option<u32>);
     fn clear_tab_stop(&self, option: Option<u32>);
     fn set_mode(&mut self, modes: &[u32], is_private: bool);
@@ -223,7 +223,7 @@ pub trait ParserListener {
             ec if ec == DCH => self.delete_characters(params.iter().cloned().next()),
             ec if ec == ECH => self.erase_characters(params.iter().cloned().next()),
             ec if ec == HPR => self.cursor_forward(params.iter().cloned().next()),
-            ec if ec == DA => self.report_device_attributes(params.iter().cloned().next()),
+            ec if ec == DA => self.report_device_attributes(params.iter().cloned().next(), None),
             ec if ec == VPA => self.cursor_to_line(params.iter().cloned().next()),
             ec if ec == VPR => self.cursor_down(params.iter().cloned().next()),
             ec if ec == HVP => {

@@ -251,6 +251,11 @@ impl Screen {
 
         self.cursor.y = u32::min(u32::max(top, self.cursor.y), bottom)
     }
+
+    /// Write to the process input.
+    pub fn write_process_input(&self, input: &str) {
+        // Implementation for writing to the process input.
+    }
 }
 
 impl ParserListener for Screen {
@@ -754,8 +759,21 @@ impl ParserListener for Screen {
             }
         }
     }
-    fn report_device_attributes(&self, attribute: Option<u32>) {
-        todo!()
+    /// Report terminal identity.
+    ///
+    /// # Parameters
+    /// - `mode`: Mode for reporting terminal identity.
+    /// - `private`: When `true`, the method does nothing. This behavior is consistent with the VT220 manual.
+    ///
+    /// # Version
+    /// - Added in version 0.5.0
+    /// - Changed in version 0.7.0: If `private` keyword argument is set, the method does nothing.
+    fn report_device_attributes(&mut self, mode: Option<u32>, private: Option<bool>) {
+        // We only implement "primary" DA which is the only DA request
+        // VT102 understood, see `VT102ID` in `linux/drivers/tty/vt.c`.
+        if mode.unwrap_or(0) == 0 && !private.unwrap_or(false) {
+            self.write_process_input("\x1B[?6c");
+        }
     }
 
     fn cursor_to_line(&self, count: Option<u32>) {

@@ -76,7 +76,7 @@ pub trait ParserListener {
     fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>);
     fn insert_lines(&mut self, count: Option<u32>);
     fn delete_lines(&mut self, count: Option<u32>);
-    fn delete_characters(&self, count: Option<u32>);
+    fn delete_characters(&mut self, count: Option<u32>);
     fn erase_characters(&self, count: Option<u32>);
     fn report_device_attributes(&self, attribute: Option<u32>);
     fn cursor_to_line(&self, count: Option<u32>);

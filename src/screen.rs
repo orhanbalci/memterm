@@ -706,8 +706,30 @@ impl ParserListener for Screen {
         }
     }
 
-    fn delete_characters(&self, count: Option<u32>) {
-        todo!()
+    /// Delete the indicated number of characters, starting with the
+    /// character at the cursor position. When a character is deleted,
+    /// all characters to the right of the cursor move left. Character
+    /// attributes move with the characters.
+    ///
+    /// # Parameters
+    /// - `count`: Number of characters to delete.
+    fn delete_characters(&mut self, count: Option<u32>) {
+        self.dirty.insert(self.cursor.y);
+        let count = count.unwrap_or(1);
+
+        if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
+            for x in self.cursor.x..self.columns {
+                if x + count <= self.columns {
+                    if let Some(char_opts) = line.remove(&(x + count)) {
+                        line.insert(x, char_opts);
+                    } else {
+                        line.insert(x, CharOpts::default());
+                    }
+                } else {
+                    line.remove(&x);
+                }
+            }
+        }
     }
 
     fn erase_characters(&self, count: Option<u32>) {

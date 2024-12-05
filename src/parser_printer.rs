@@ -111,7 +111,7 @@ impl ParserListener for ParserPrinter {
         println!("delete lines");
     }
 
-    fn delete_characters(&self, count: Option<u32>) {
+    fn delete_characters(&mut self, count: Option<u32>) {
         println!("delete characters");
     }
 

@@ -83,7 +83,7 @@ pub trait ParserListener {
     fn clear_tab_stop(&mut self, how: Option<u32>);
     fn set_mode(&mut self, modes: &[u32], is_private: bool);
     fn reset_mode(&mut self, modes: &[u32], is_private: bool);
-    fn select_graphic_rendition(&self, modes: &[u32]);
+    fn select_graphic_rendition(&mut self, modes: &[u32]);
     fn set_title(&mut self, title: &str);
     fn set_icon_name(&mut self, icon_name: &str);
 

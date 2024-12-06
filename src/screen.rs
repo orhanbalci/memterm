@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 use unicode_width::UnicodeWidthStr;
 
 use crate::charset::{LAT1_MAP, MAPS, VT100_MAP};
+use crate::graphics::{BG_256, BG_AIXTERM, BG_ANSI, FG_256, FG_AIXTERM, FG_ANSI, FG_BG_256, TEXT};
 use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, LNM};
 use crate::parser_listener::ParserListener;
 
@@ -19,6 +20,39 @@ pub struct CharOpts {
     pub strikethrough: bool,
     pub reverse: bool,
     pub blink: bool,
+}
+
+impl CharOpts {
+    fn update_from_map(&mut self, map: HashMap<String, String>) {
+        for (key, value) in map {
+            match key.as_str() {
+                "data" => self.data = value,
+                "fg" => self.fg = value,
+                "bg" => self.bg = value,
+                "bold" => self.bold = value.parse().unwrap_or(false),
+                "italics" => self.italics = value.parse().unwrap_or(false),
+                "underscore" => self.underscore = value.parse().unwrap_or(false),
+                "strikethrough" => self.strikethrough = value.parse().unwrap_or(false),
+                "reverse" => self.reverse = value.parse().unwrap_or(false),
+                "blink" => self.blink = value.parse().unwrap_or(false),
+                _ => {}
+            }
+        }
+    }
+
+    fn to_map(&self) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        map.insert("data".to_string(), self.data.clone());
+        map.insert("fg".to_string(), self.fg.clone());
+        map.insert("bg".to_string(), self.bg.clone());
+        map.insert("bold".to_string(), self.bold.to_string());
+        map.insert("italics".to_string(), self.italics.to_string());
+        map.insert("underscore".to_string(), self.underscore.to_string());
+        map.insert("strikethrough".to_string(), self.strikethrough.to_string());
+        map.insert("reverse".to_string(), self.reverse.to_string());
+        map.insert("blink".to_string(), self.blink.to_string());
+        map
+    }
 }
 
 impl Default for CharOpts {
@@ -253,7 +287,7 @@ impl Screen {
     }
 
     /// Write to the process input.
-    pub fn write_process_input(&self, input: &str) {
+    pub fn write_process_input(&self, _input: &str) {
         // Implementation for writing to the process input.
     }
 }
@@ -488,7 +522,7 @@ impl ParserListener for Screen {
         self.cursor.x = 0;
     }
 
-    fn draw(&self, input: &str) {
+    fn draw(&self, _input: &str) {
         todo!()
     }
 
@@ -621,7 +655,7 @@ impl ParserListener for Screen {
     /// # Version
     ///
     /// This method accepts any number of positional arguments as some `clear` implementations include a `;` after the first parameter causing the stream to assume a `0` second parameter.
-    fn erase_in_display(&mut self, how: Option<u32>, private: Option<bool>) {
+    fn erase_in_display(&mut self, how: Option<u32>, _private: Option<bool>) {
         let interval: std::ops::Range<u32> = match how {
             Some(0) => self.cursor.y + 1..self.lines,
             Some(1) => 0..self.cursor.y,
@@ -642,7 +676,7 @@ impl ParserListener for Screen {
         }
     }
 
-    fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>) {
+    fn erase_in_line(&mut self, how: Option<u32>, _private: Option<bool>) {
         self.dirty.insert(self.cursor.y);
 
         let how = how.unwrap_or(0);
@@ -954,8 +988,71 @@ impl ParserListener for Screen {
         }
     }
 
-    fn select_graphic_rendition(&self, modes: &[u32]) {
-        todo!()
+    /// Set display attributes.
+    ///
+    /// # Parameters
+    /// - `attrs`: A list of display attributes to set.
+    fn select_graphic_rendition(&mut self, attrs: &[u32]) {
+        let mut replace = HashMap::new();
+
+        // Fast path for resetting all attributes.
+        if attrs.is_empty() || (attrs.len() == 1 && attrs[0] == 0) {
+            self.cursor.attr = CharOpts::default();
+            return;
+        }
+
+        let mut attrs_list = attrs.to_vec();
+        attrs_list.reverse();
+
+        while let Some(attr) = attrs_list.pop() {
+            match attr {
+                0 => {
+                    // Reset all attributes.
+                    replace.extend(CharOpts::default().to_map());
+                }
+                attr if FG_ANSI.contains_key(&attr) => {
+                    replace.insert("fg".to_string(), FG_ANSI[&attr].clone());
+                }
+                attr if BG_ANSI.contains_key(&attr) => {
+                    replace.insert("bg".to_string(), BG_ANSI[&attr].clone());
+                }
+                attr if TEXT.contains_key(&attr) => {
+                    let attr_str = &TEXT[&attr];
+                    replace.insert(
+                        attr_str[1..].to_string(),
+                        attr_str.starts_with('+').to_string(),
+                    );
+                }
+                attr if FG_AIXTERM.contains_key(&attr) => {
+                    replace.insert("fg".to_string(), FG_AIXTERM[&attr].clone());
+                }
+                attr if BG_AIXTERM.contains_key(&attr) => {
+                    replace.insert("bg".to_string(), BG_AIXTERM[&attr].clone());
+                }
+                attr if attr == FG_256 || attr == BG_256 => {
+                    let key = if attr == FG_256 { "fg" } else { "bg" };
+                    if let Some(n) = attrs_list.pop() {
+                        if n == 5 {
+                            if let Some(m) = attrs_list.pop() {
+                                replace.insert(key.to_string(), FG_BG_256[m as usize].clone());
+                            }
+                        } else if n == 2 {
+                            if let (Some(r), Some(g), Some(b)) =
+                                (attrs_list.pop(), attrs_list.pop(), attrs_list.pop())
+                            {
+                                replace.insert(
+                                    key.to_string(),
+                                    format!("{:02x}{:02x}{:02x}", r, g, b),
+                                );
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.cursor.attr.update_from_map(replace);
     }
 
     /// Set terminal title.

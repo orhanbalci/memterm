@@ -91,55 +91,55 @@ impl ParserListener for DebugScreen {
         println!("cursor to column character {:?}", character);
     }
 
-    fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>) {
+    fn cursor_position(&mut self, _line: Option<u32>, _character: Option<u32>) {
         println!("cursor position");
     }
 
-    fn erase_in_display(&mut self, how: Option<u32>, private: Option<bool>) {
+    fn erase_in_display(&mut self, _how: Option<u32>, _private: Option<bool>) {
         println!("erase in display");
     }
 
-    fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>) {
+    fn erase_in_line(&mut self, _how: Option<u32>, _private: Option<bool>) {
         println!("erase in line");
     }
 
-    fn insert_lines(&mut self, count: Option<u32>) {
+    fn insert_lines(&mut self, _count: Option<u32>) {
         println!("insert lines")
     }
 
-    fn delete_lines(&mut self, count: Option<u32>) {
+    fn delete_lines(&mut self, _count: Option<u32>) {
         println!("delete lines");
     }
 
-    fn delete_characters(&mut self, count: Option<u32>) {
+    fn delete_characters(&mut self, _count: Option<u32>) {
         println!("delete characters");
     }
 
-    fn erase_characters(&mut self, count: Option<u32>) {
+    fn erase_characters(&mut self, _count: Option<u32>) {
         println!("erase characters");
     }
 
-    fn report_device_attributes(&mut self, mode: Option<u32>, private: Option<bool>) {
+    fn report_device_attributes(&mut self, _mode: Option<u32>, _private: Option<bool>) {
         println!("report device attributes");
     }
 
-    fn cursor_to_line(&mut self, line: Option<u32>) {
+    fn cursor_to_line(&mut self, _line: Option<u32>) {
         println!("cursor to line");
     }
 
-    fn clear_tab_stop(&mut self, how: Option<u32>) {
+    fn clear_tab_stop(&mut self, _how: Option<u32>) {
         println!("clear tab stop");
     }
 
-    fn set_mode(&mut self, modes: &[u32], is_private: bool) {
+    fn set_mode(&mut self, _modes: &[u32], _is_private: bool) {
         println!("set mode");
     }
 
-    fn reset_mode(&mut self, modes: &[u32], is_private: bool) {
+    fn reset_mode(&mut self, _modes: &[u32], _is_private: bool) {
         println!("reset mode");
     }
 
-    fn select_graphic_rendition(&self, modes: &[u32]) {
+    fn select_graphic_rendition(&mut self, _modes: &[u32]) {
         println!("select graphic rendition");
     }
 

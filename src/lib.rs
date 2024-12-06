@@ -10,6 +10,7 @@ pub(crate) use ascii;
 pub mod charset;
 pub mod control;
 pub mod debug_screen;
+pub mod graphics;
 pub mod modes;
 pub mod parser;
 pub mod parser_listener;

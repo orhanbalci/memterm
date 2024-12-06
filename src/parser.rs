@@ -12,7 +12,7 @@ pub struct ParserState {
 }
 pub struct Parser<'a> {
     parser_fsm: Generator<'a, String, Option<bool>>,
-    parser_state: Arc<Mutex<ParserState>>,
+    _parser_state: Arc<Mutex<ParserState>>,
 }
 
 impl<'a> Parser<'a> {
@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
                             } else if char == "%" {
                                 // self.select_other_charset(yield_!(None));
                             } else if "()".contains(&char) {
-                                let code = co.yield_(None);
+                                let _code = co.yield_(None);
                                 if parser_state_cloned.lock().unwrap().use_utf8 {
                                     continue;
                                 } else {
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
                     }
                 }
             }),
-            parser_state: parser_state,
+            _parser_state: parser_state,
         };
     }
 

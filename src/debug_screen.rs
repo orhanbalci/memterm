@@ -123,11 +123,11 @@ impl ParserListener for DebugScreen {
         println!("report device attributes");
     }
 
-    fn cursor_to_line(&self, count: Option<u32>) {
+    fn cursor_to_line(&mut self, line: Option<u32>) {
         println!("cursor to line");
     }
 
-    fn clear_tab_stop(&self, option: Option<u32>) {
+    fn clear_tab_stop(&mut self, how: Option<u32>) {
         println!("clear tab stop");
     }
 

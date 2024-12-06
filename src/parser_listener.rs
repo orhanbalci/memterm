@@ -79,8 +79,8 @@ pub trait ParserListener {
     fn delete_characters(&mut self, count: Option<u32>);
     fn erase_characters(&mut self, count: Option<u32>);
     fn report_device_attributes(&mut self, mode: Option<u32>, private: Option<bool>);
-    fn cursor_to_line(&self, count: Option<u32>);
-    fn clear_tab_stop(&self, option: Option<u32>);
+    fn cursor_to_line(&mut self, line: Option<u32>);
+    fn clear_tab_stop(&mut self, how: Option<u32>);
     fn set_mode(&mut self, modes: &[u32], is_private: bool);
     fn reset_mode(&mut self, modes: &[u32], is_private: bool);
     fn select_graphic_rendition(&self, modes: &[u32]);

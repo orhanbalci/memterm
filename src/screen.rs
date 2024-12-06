@@ -782,12 +782,48 @@ impl ParserListener for Screen {
         }
     }
 
-    fn cursor_to_line(&self, count: Option<u32>) {
-        todo!()
+    /// Move cursor to a specific line in the current column.
+    ///
+    /// # Parameters
+    /// - `line`: Line number to move the cursor to.
+    fn cursor_to_line(&mut self, line: Option<u32>) {
+        self.cursor.y = line.unwrap_or(1) - 1;
+
+        // If origin mode (DECOM) is set, line numbers are relative to
+        // the top scrolling margin.
+        if self.mode.contains(&DECOM) {
+            if let Some(margins) = self.margins {
+                self.cursor.y += margins.top;
+            }
+
+            // FIXME: should we also restrict the cursor to the scrolling
+            // region?
+        }
+
+        self.ensure_vbounds(None);
     }
 
-    fn clear_tab_stop(&self, option: Option<u32>) {
-        todo!()
+    /// Clear a horizontal tab stop.
+    ///
+    /// # Parameters
+    /// - `how`: Defines the way the tab stop should be cleared:
+    ///     - `0` or nothing: Clears a horizontal tab stop at the cursor position.
+    ///     - `3`: Clears all horizontal tab stops.
+    fn clear_tab_stop(&mut self, how: Option<u32>) {
+        match how.unwrap_or(0) {
+            0 => {
+                // Clears a horizontal tab stop at cursor position, if it's
+                // present, or silently fails if otherwise.
+                self.tabstops.remove(&self.cursor.x);
+            }
+            3 => {
+                // Clears all horizontal tab stops.
+                self.tabstops.clear();
+            }
+            _ => {
+                // Handle invalid `how` values if necessary.
+            }
+        }
     }
 
     /// Set (enable) a given list of modes.

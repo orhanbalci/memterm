@@ -3,7 +3,7 @@ use crate::parser_listener::ParserListener;
 pub struct DebugScreen {}
 
 impl ParserListener for DebugScreen {
-    fn alignment_display(&self) {
+    fn alignment_display(&mut self) {
         println!("alignment display");
     }
 

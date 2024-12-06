@@ -309,8 +309,16 @@ impl Screen {
 }
 
 impl ParserListener for Screen {
-    fn alignment_display(&self) {
-        todo!()
+    /// Fills screen with uppercase E's for screen focus and alignment.
+    fn alignment_display(&mut self) {
+        self.dirty.extend(0..self.lines);
+        for y in 0..self.lines {
+            let line = self.buffer.entry(y).or_insert_with(HashMap::new);
+            for x in 0..self.columns {
+                let char_opts = line.entry(x).or_insert_with(CharOpts::default);
+                char_opts.data = "E".to_string();
+            }
+        }
     }
 
     /// Define ``G0`` or ``G1`` charset.

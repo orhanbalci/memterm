@@ -42,7 +42,7 @@ use crate::control::{
 };
 
 pub trait ParserListener {
-    fn alignment_display(&self);
+    fn alignment_display(&mut self);
     fn define_charset(&mut self, code: &str, mode: &str);
     fn reset(&mut self);
     fn index(&mut self);

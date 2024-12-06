@@ -1224,6 +1224,7 @@ mod test {
 
     use super::{CharOpts, Screen};
     use crate::graphics::{BG_256, FG_256};
+    use crate::modes::LNM;
     use crate::parser_listener::ParserListener;
 
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
@@ -1493,5 +1494,89 @@ mod test {
 
         screen.select_graphic_rendition(&[0]); // Reset all attributes.
         assert_eq!(screen.cursor.attr, CharOpts::default());
+    }
+
+    #[test]
+    fn test_reset_works_between_attributes() {
+        let mut screen = Screen::new(2, 2);
+
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_initial);
+
+        // Red fg, reset, red bg
+        screen.select_graphic_rendition(&[31, 0, 41]);
+        assert_eq!(screen.cursor.attr.fg, "default");
+        assert_eq!(screen.cursor.attr.bg, "red");
+    }
+
+    #[test]
+    fn test_multi_attribs() {
+        let mut screen = Screen::new(2, 2);
+
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_initial);
+
+        screen.select_graphic_rendition(&[1]); // Set bold
+        screen.select_graphic_rendition(&[3]); // Set italics
+
+        assert!(screen.cursor.attr.bold);
+        assert!(screen.cursor.attr.italics);
+    }
+
+    #[test]
+    fn test_attributes_reset() {
+        let mut screen = Screen::new(2, 2);
+        screen.set_mode(&[LNM], false);
+
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_initial);
+
+        // Set bold attribute and draw "foo"
+        screen.select_graphic_rendition(&[1]);
+        screen.draw("f");
+        screen.draw("o");
+        screen.draw("o");
+
+        let bold_char = |c: &str| CharOpts {
+            data: c.to_string(),
+            bold: true,
+            ..CharOpts::default()
+        };
+
+        let expected_after_foo = vec![
+            vec![bold_char("f"), bold_char("o")],
+            vec![bold_char("o"), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_after_foo);
+
+        // Reset cursor position and attributes, then draw "f"
+        screen.cursor_position(None, None);
+        screen.select_graphic_rendition(&[0]);
+        screen.draw("f");
+
+        let normal_char = |c: &str| CharOpts { data: c.to_string(), ..CharOpts::default() };
+
+        let expected_final = vec![
+            vec![normal_char("f"), bold_char("o")],
+            vec![bold_char("o"), default_char],
+        ];
+
+        assert_eq!(tolist(&screen), expected_final);
     }
 }

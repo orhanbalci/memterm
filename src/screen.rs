@@ -283,20 +283,26 @@ impl Screen {
         // based -- so we have to decrement them by one. We also
         // make sure that both of them is bounded by [0, lines - 1].
         let top = if top.is_none() {
-            margins_inner.top
+            margins_inner.top as i32
         } else {
-            u32::max(
+            i32::max(
                 0,
-                u32::min(top.expect("unexpected top value") - 1, self.lines - 1),
+                i32::min(
+                    top.expect("unexpected top value") as i32 - 1,
+                    self.lines as i32 - 1,
+                ),
             )
         };
 
         let bottom = if bottom.is_none() {
-            margins_inner.bottom
+            margins_inner.bottom as i32
         } else {
-            u32::max(
+            i32::max(
                 0,
-                u32::min(bottom.expect("unexpected bottom value") - 1, self.lines - 1),
+                i32::min(
+                    bottom.expect("unexpected bottom value") as i32 - 1,
+                    self.lines as i32 - 1,
+                ),
             )
         };
 
@@ -304,7 +310,7 @@ impl Screen {
         // regions of width less than 2, some programs (like aptitude
         // for example) rely on it. Practicality beats purity.
         if bottom - top >= 1 {
-            self.margins = Some(Margins { top: top, bottom: bottom });
+            self.margins = Some(Margins { top: top as u32, bottom: bottom as u32 });
             // The cursor moves to the home position when the top and
             // bottom margins of the scrolling region (DECSTBM) changes.
             self.cursor_position(None, None);
@@ -762,23 +768,23 @@ impl ParserListener for Screen {
     }
 
     fn cursor_position(&mut self, line: Option<u32>, column: Option<u32>) {
-        let column = column.unwrap_or(1) - 1;
-        let mut line = line.unwrap_or(1) - 1;
+        let column: i32 = column.map(|a| if a == 0 { 1 } else { a }).unwrap_or(1) as i32 - 1;
+        let mut line: i32 = line.map(|a| if a == 0 { 1 } else { a }).unwrap_or(1) as i32 - 1;
 
         // If origin mode (DECOM) is set, line number is relative to the top scrolling margin.
         if let Some(margins) = &self.margins {
             if self.mode.contains(&DECOM) {
-                line += margins.top;
+                line += margins.top as i32;
 
                 // Cursor is not allowed to move out of the scrolling region.
-                if line < margins.top || line > margins.bottom {
+                if line < margins.top as i32 || line > margins.bottom as i32 {
                     return;
                 }
             }
         }
 
-        self.cursor.x = column;
-        self.cursor.y = line;
+        self.cursor.x = column as u32;
+        self.cursor.y = line as u32;
         self.ensure_hbounds();
         self.ensure_vbounds(None);
     }
@@ -1224,7 +1230,7 @@ mod test {
 
     use super::{CharOpts, Screen};
     use crate::graphics::{BG_256, FG_256};
-    use crate::modes::LNM;
+    use crate::modes::{DECOM, LNM};
     use crate::parser_listener::ParserListener;
 
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
@@ -1578,5 +1584,83 @@ mod test {
         ];
 
         assert_eq!(tolist(&screen), expected_final);
+    }
+
+    #[test]
+    fn test_resize() {
+        // Test initial resize behavior
+        let mut screen = Screen::new(2, 2);
+        screen.set_mode(&[DECOM], false);
+        screen.set_margins(Some(0), Some(1));
+
+        assert_eq!(screen.columns, 2);
+        assert_eq!(screen.lines, 2);
+
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+        assert_eq!(tolist(&screen), expected_initial);
+
+        // Test resize to larger dimensions
+        screen.resize(Some(3), Some(3));
+        assert_eq!(screen.columns, 3);
+        assert_eq!(screen.lines, 3);
+
+        let expected_larger = vec![
+            vec![
+                default_char.clone(),
+                default_char.clone(),
+                default_char.clone(),
+            ],
+            vec![
+                default_char.clone(),
+                default_char.clone(),
+                default_char.clone(),
+            ],
+            vec![
+                default_char.clone(),
+                default_char.clone(),
+                default_char.clone(),
+            ],
+        ];
+        assert_eq!(tolist(&screen), expected_larger);
+        assert!(screen.mode.contains(&DECOM));
+        assert!(screen.margins.is_none());
+
+        // Test resize back to original size
+        screen.resize(Some(2), Some(2));
+        assert_eq!(screen.columns, 2);
+        assert_eq!(screen.lines, 2);
+        assert_eq!(tolist(&screen), expected_initial);
+
+        // Test quirks:
+        // a) Adding columns to the right
+        let mut screen = Screen::new(2, 2);
+        update(&mut screen, vec!["bo", "sh"], vec![]);
+        screen.resize(Some(2), Some(3));
+        assert_eq!(screen.display(), vec!["bo ".to_string(), "sh ".to_string()]);
+
+        // b) Removing columns from the right
+        let mut screen = Screen::new(2, 2);
+        update(&mut screen, vec!["bo", "sh"], vec![]);
+        screen.resize(Some(2), Some(1));
+        assert_eq!(screen.display(), vec!["b".to_string(), "s".to_string()]);
+
+        // c) Adding rows at the bottom
+        let mut screen = Screen::new(2, 2);
+        update(&mut screen, vec!["bo", "sh"], vec![]);
+        screen.resize(Some(3), Some(2));
+        assert_eq!(
+            screen.display(),
+            vec!["bo".to_string(), "sh".to_string(), "  ".to_string()]
+        );
+
+        // d) Removing rows from the top
+        let mut screen = Screen::new(2, 2);
+        update(&mut screen, vec!["bo", "sh"], vec![]);
+        screen.resize(Some(1), Some(2));
+        assert_eq!(screen.display(), vec!["sh".to_string()]);
     }
 }

@@ -547,8 +547,14 @@ impl ParserListener for Screen {
         self.cariage_return();
     }
 
-    fn cursor_forward(&self, count: Option<u32>) {
-        todo!()
+    /// Move cursor right the indicated number of columns. Cursor stops
+    /// at the right margin.
+    ///
+    /// # Parameters
+    /// - `count`: Number of columns to skip.
+    fn cursor_forward(&mut self, count: Option<u32>) {
+        self.cursor.x += count.unwrap_or(1);
+        self.ensure_hbounds();
     }
 
     /// Move cursor left the indicated # of columns. Cursor stops

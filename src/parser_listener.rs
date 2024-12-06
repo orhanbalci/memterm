@@ -66,7 +66,7 @@ pub trait ParserListener {
     fn insert_characters(&mut self, count: Option<u32>);
     fn cursor_up(&mut self, count: Option<u32>);
     fn cursor_down(&mut self, count: Option<u32>);
-    fn cursor_forward(&self, count: Option<u32>);
+    fn cursor_forward(&mut self, count: Option<u32>);
     fn cursor_back(&mut self, count: Option<u32>);
     fn cursor_down1(&mut self, count: Option<u32>);
     fn cursor_up1(&mut self, count: Option<u32>);

@@ -1,8 +1,8 @@
 use crate::parser_listener::ParserListener;
 
-pub struct ParserPrinter {}
+pub struct DebugScreen {}
 
-impl ParserListener for ParserPrinter {
+impl ParserListener for DebugScreen {
     fn alignment_display(&self) {
         println!("alignment display");
     }
@@ -71,7 +71,7 @@ impl ParserListener for ParserPrinter {
         println!("cursor down count {:?}", count);
     }
 
-    fn cursor_forward(&self, count: Option<u32>) {
+    fn cursor_forward(&mut self, count: Option<u32>) {
         println!("cursor forward count {:?}", count);
     }
 

@@ -138,11 +138,11 @@ mod test {
     use std::sync::{Arc, Mutex};
 
     use super::{Parser, ESC, RIS};
-    use crate::parser_printer::ParserPrinter;
+    use crate::parser_printer::DebugScreen;
 
     #[test]
     fn first_step() {
-        let listener = Arc::new(Mutex::new(ParserPrinter {}));
+        let listener = Arc::new(Mutex::new(DebugScreen {}));
         let mut parser = Parser::new(listener.clone());
         parser.feed(String::default());
         parser.feed(ESC.to_owned());

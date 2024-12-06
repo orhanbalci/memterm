@@ -182,6 +182,7 @@ impl Screen {
 
     ///A list of screen lines as unicode strings.
     pub fn display(&mut self) -> Vec<String> {
+        let default_char = self.default_char();
         let render = |line: &mut HashMap<u32, CharOpts>| -> String {
             let mut result = String::new();
             let mut is_wide_char = false;
@@ -190,7 +191,7 @@ impl Screen {
                     is_wide_char = false;
                     continue;
                 }
-                let char = line.entry(x).or_insert(CharOpts::default()).data.clone();
+                let char = line.entry(x).or_insert(default_char.clone()).data.clone();
                 is_wide_char = UnicodeWidthStr::width(
                     char.get(0..1)
                         .expect("at least 1 character empty string expected"),
@@ -340,6 +341,17 @@ impl Screen {
     pub fn write_process_input(&self, _input: &str) {
         // Implementation for writing to the process input.
     }
+
+    /// Returns an empty character with default foreground and background colors.
+    pub fn default_char(&self) -> CharOpts {
+        CharOpts {
+            data: " ".to_owned(),
+            fg: "default".to_owned(),
+            bg: "default".to_owned(),
+            reverse: self.mode.contains(&DECSCNM),
+            ..CharOpts::default()
+        }
+    }
 }
 
 impl ParserListener for Screen {
@@ -349,6 +361,7 @@ impl ParserListener for Screen {
         for y in 0..self.lines {
             let line = self.buffer.entry(y).or_insert_with(HashMap::new);
             for x in 0..self.columns {
+                // TODO check this default, should be default_char on screen
                 let char_opts = line.entry(x).or_insert_with(CharOpts::default);
                 char_opts.data = "E".to_string();
             }
@@ -417,7 +430,7 @@ impl ParserListener for Screen {
             x: 0,
             y: 0,
             hidden: false,
-            attr: CharOpts::default(),
+            attr: self.default_char(),
         };
         self.cursor_position(None, None);
 
@@ -687,6 +700,8 @@ impl ParserListener for Screen {
         self.dirty.insert(self.cursor.y);
 
         let count = count.unwrap_or(1);
+        let default = self.default_char();
+
         let line = self
             .buffer
             .get_mut(&self.cursor.y)
@@ -699,11 +714,11 @@ impl ParserListener for Screen {
                         line.insert(x + count, val.clone());
                     }
                     None => {
-                        line.insert(x + count, CharOpts::default());
+                        line.insert(x + count, default.clone());
                     }
                 }
             }
-            line.insert(x, CharOpts::default());
+            line.insert(x, default.clone());
         }
     }
 
@@ -816,6 +831,7 @@ impl ParserListener for Screen {
         for y in interval.clone() {
             let line = &mut self.buffer.get_mut(&y).expect("can not retrieve line");
             for x in 0..line.len() {
+                dbg!(self.cursor.attr.clone());
                 line.insert(x as u32, self.cursor.attr.clone());
             }
         }
@@ -910,14 +926,14 @@ impl ParserListener for Screen {
     fn delete_characters(&mut self, count: Option<u32>) {
         self.dirty.insert(self.cursor.y);
         let count = count.unwrap_or(1);
-
+        let default_char = self.default_char();
         if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
             for x in self.cursor.x..self.columns {
                 if x + count <= self.columns {
                     if let Some(char_opts) = line.remove(&(x + count)) {
                         line.insert(x, char_opts);
                     } else {
-                        line.insert(x, CharOpts::default());
+                        line.insert(x, default_char.clone());
                     }
                 } else {
                     line.remove(&x);
@@ -1029,6 +1045,7 @@ impl ParserListener for Screen {
         // mode_list = list(modes)
         // Private mode codes are shifted, to be distinguished from non
         // private ones.
+        dbg!("set ode called");
         let mut mode_list = Vec::from(modes);
         if private {
             mode_list = modes.iter().map(|m| m << 5).collect::<Vec<_>>();
@@ -1041,7 +1058,9 @@ impl ParserListener for Screen {
 
         // When DECOLM mode is set, the screen is erased and the cursor
         // moves to the home position.
+        dbg!(mode_list.clone());
         if mode_list.iter().any(|m| *m == DECCOLM) {
+            dbg!("DECCOLM");
             self.saved_columns = Some(self.columns);
             self.resize(None, Some(132));
             self.erase_in_display(Some(2), None);
@@ -1106,10 +1125,14 @@ impl ParserListener for Screen {
             .cloned()
             .collect();
 
-        // Lines below follow the logic in :meth:`set_mode`.
+        // Lines below follow the logic in set_mode.
         if mode_list.iter().any(|m| *m == DECCOLM) {
-            self.saved_columns = Some(self.columns);
-            self.resize(None, Some(132));
+            if self.columns == 132 {
+                if let Some(saved_columns) = self.saved_columns {
+                    self.resize(None, Some(saved_columns));
+                    self.saved_columns = None;
+                }
+            }
             self.erase_in_display(Some(2), None);
             self.cursor_position(None, None);
         }
@@ -1124,7 +1147,7 @@ impl ParserListener for Screen {
             for line in self.buffer.values_mut() {
                 // line.default = self.default_char;
                 for x in line.iter_mut() {
-                    x.1.reverse = true;
+                    x.1.reverse = false;
                 }
             }
 
@@ -1146,7 +1169,7 @@ impl ParserListener for Screen {
 
         // Fast path for resetting all attributes.
         if attrs.is_empty() || (attrs.len() == 1 && attrs[0] == 0) {
-            self.cursor.attr = CharOpts::default();
+            self.cursor.attr = self.default_char();
             return;
         }
 
@@ -1157,7 +1180,7 @@ impl ParserListener for Screen {
             match attr {
                 0 => {
                     // Reset all attributes.
-                    replace.extend(CharOpts::default().to_map());
+                    replace.extend(self.default_char().to_map());
                 }
                 attr if FG_ANSI.contains_key(&attr) => {
                     replace.insert("fg".to_string(), FG_ANSI[&attr].clone());
@@ -1230,13 +1253,13 @@ mod test {
 
     use super::{CharOpts, Screen};
     use crate::graphics::{BG_256, FG_256};
-    use crate::modes::{DECOM, LNM};
+    use crate::modes::{DECCOLM, DECOM, DECSCNM, DECTCEM, LNM};
     use crate::parser_listener::ParserListener;
 
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
         for (y, line) in lines.iter().enumerate() {
             for (x, char) in line.chars().enumerate() {
-                let mut attrs = CharOpts::default();
+                let mut attrs = screen.default_char();
                 if colored.contains(&(y as u32)) {
                     attrs.fg = "red".to_string();
                 }
@@ -1662,5 +1685,71 @@ mod test {
         update(&mut screen, vec!["bo", "sh"], vec![]);
         screen.resize(Some(1), Some(2));
         assert_eq!(screen.display(), vec!["sh".to_string()]);
+    }
+
+    #[test]
+    fn test_resize_same() {
+        let mut screen = Screen::new(2, 2);
+        screen.dirty.clear();
+        screen.resize(Some(2), Some(2));
+        assert!(screen.dirty.is_empty());
+    }
+
+    #[test]
+    fn test_set_mode() {
+        // Test DECCOLM mode
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![]);
+        screen.cursor_position(Some(1), Some(1));
+        screen.set_mode(&[DECCOLM], false);
+
+        let default_char = screen.default_char();
+        for line in tolist(&screen) {
+            for char in line {
+                assert_eq!(char, default_char);
+            }
+        }
+        assert_eq!(screen.columns, 132);
+        assert_eq!(screen.cursor.x, 0);
+        assert_eq!(screen.cursor.y, 0);
+        screen.reset_mode(&[DECCOLM], false);
+        assert_eq!(screen.columns, 3);
+
+        // Test DECOM mode
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![]);
+        screen.cursor_position(Some(1), Some(1));
+        screen.set_mode(&[DECOM], false);
+        assert_eq!(screen.cursor.x, 0);
+        assert_eq!(screen.cursor.y, 0);
+
+        // Test DECSCNM mode
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![]);
+        screen.set_mode(&[DECSCNM], false);
+        for line in tolist(&screen) {
+            for char in line {
+                assert!(char.reverse);
+            }
+        }
+        let default_char = screen.default_char();
+        assert!(default_char.reverse);
+        screen.reset_mode(&[DECSCNM], false);
+        for line in tolist(&screen) {
+            for char in line {
+                assert!(!char.reverse);
+            }
+        }
+        let default_char = screen.default_char();
+        assert!(!default_char.reverse);
+
+        // Test DECTCEM mode
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![]);
+        screen.cursor.hidden = true;
+        screen.set_mode(&[DECTCEM], false);
+        assert!(!screen.cursor.hidden);
+        screen.reset_mode(&[DECTCEM], false);
+        assert!(screen.cursor.hidden);
     }
 }

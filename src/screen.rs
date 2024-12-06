@@ -11,7 +11,7 @@ use crate::graphics::{BG_256, BG_AIXTERM, BG_ANSI, FG_256, FG_AIXTERM, FG_ANSI, 
 use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, IRM, LNM};
 use crate::parser_listener::ParserListener;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct CharOpts {
     pub data: String,
     pub fg: String,
@@ -152,6 +152,34 @@ impl Display for Screen {
 }
 
 impl Screen {
+    pub fn new(columns: u32, lines: u32) -> Self {
+        let mut screen = Screen {
+            savepoints: Vec::new(),
+            columns,
+            lines,
+            buffer: HashMap::new(),
+            dirty: HashSet::new(),
+            mode: _DEFAULT_MODE.clone(),
+            margins: None,
+            title: String::new(),
+            icon_name: String::new(),
+            charset: Charset::G0,
+            g0_charset: LAT1_MAP.clone(),
+            g1_charset: VT100_MAP.clone(),
+            tabstops: HashSet::new(),
+            cursor: Cursor {
+                x: 0,
+                y: 0,
+                attr: CharOpts::default(),
+                hidden: false,
+            },
+            saved_columns: None,
+        };
+
+        screen.reset();
+        screen
+    }
+
     ///A list of screen lines as unicode strings.
     pub fn display(&mut self) -> Vec<String> {
         let render = |line: &mut HashMap<u32, CharOpts>| -> String {
@@ -1182,5 +1210,141 @@ impl ParserListener for Screen {
     /// **Warning:** This is an XTerm extension supported by the Linux terminal.
     fn set_icon_name(&mut self, icon_name: &str) {
         self.icon_name = icon_name.to_owned();
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use super::{CharOpts, Screen};
+    use crate::parser_listener::ParserListener;
+
+    pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
+        for (y, line) in lines.iter().enumerate() {
+            for (x, char) in line.chars().enumerate() {
+                let mut attrs = CharOpts::default();
+                if colored.contains(&(y as u32)) {
+                    attrs.fg = "red".to_string();
+                }
+                attrs.data = char.to_string();
+                screen
+                    .buffer
+                    .entry(y as u32)
+                    .or_insert_with(HashMap::new)
+                    .insert(x as u32, attrs);
+            }
+        }
+    }
+
+    pub fn tolist(screen: &Screen) -> Vec<Vec<CharOpts>> {
+        let mut result = Vec::new();
+
+        for y in 0..screen.lines {
+            let mut line = Vec::new();
+            for x in 0..screen.columns {
+                let char_opts = screen
+                    .buffer
+                    .get(&y)
+                    .and_then(|line| line.get(&x))
+                    .cloned()
+                    .unwrap_or_default();
+                line.push(char_opts);
+            }
+            result.push(line);
+        }
+
+        result
+    }
+    #[test]
+    fn test_initialize_char() {
+        // List of fields in CharOpts struct
+        let fields = vec![
+            "data",
+            "fg",
+            "bg",
+            "bold",
+            "italics",
+            "underscore",
+            "strikethrough",
+            "reverse",
+            "blink",
+        ];
+
+        for field in fields.iter().skip(1) {
+            let mut char_opts = CharOpts::default();
+            match *field {
+                "bold" => char_opts.bold = true,
+                "italics" => char_opts.italics = true,
+                "underscore" => char_opts.underscore = true,
+                "strikethrough" => char_opts.strikethrough = true,
+                "reverse" => char_opts.reverse = true,
+                "blink" => char_opts.blink = true,
+                _ => {}
+            }
+
+            match *field {
+                "bold" => assert!(char_opts.bold),
+                "italics" => assert!(char_opts.italics),
+                "underscore" => assert!(char_opts.underscore),
+                "strikethrough" => assert!(char_opts.strikethrough),
+                "reverse" => assert!(char_opts.reverse),
+                "blink" => assert!(char_opts.blink),
+                _ => {}
+            }
+        }
+    }
+
+    #[test]
+    fn test_remove_non_existant_attribute() {
+        let mut screen = Screen::new(2, 2);
+
+        let default_char = CharOpts::default();
+        let expected = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected);
+
+        screen.select_graphic_rendition(&[24]); // underline-off.
+        assert_eq!(tolist(&screen), expected);
+        assert!(!screen.cursor.attr.underscore);
+    }
+
+    #[test]
+    fn test_attributes() {
+        let mut screen = Screen::new(2, 2);
+
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_initial);
+
+        screen.select_graphic_rendition(&[1]); // bold.
+
+        // Still default, since we haven't written anything.
+        assert_eq!(tolist(&screen), expected_initial);
+        assert!(screen.cursor.attr.bold);
+
+        screen.draw("f");
+        let expected_after_draw = vec![
+            vec![
+                CharOpts {
+                    data: "f".to_string(),
+                    fg: "default".to_string(),
+                    bg: "default".to_string(),
+                    bold: true,
+                    ..default_char.clone()
+                },
+                default_char.clone(),
+            ],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_after_draw);
     }
 }

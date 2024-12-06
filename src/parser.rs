@@ -138,7 +138,7 @@ mod test {
     use std::sync::{Arc, Mutex};
 
     use super::{Parser, ESC, RIS};
-    use crate::parser_printer::DebugScreen;
+    use crate::debug_screen::DebugScreen;
 
     #[test]
     fn first_step() {

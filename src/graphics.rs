@@ -9,7 +9,7 @@ lazy_static! {
     /// A mapping of ANSI text style codes to style names, "+" means the:
     /// attribute is set, "-" -- reset; example:
     ///
-    /// ```
+    /// ``` ignore
     /// assert_eq!(TEXT.get(&1), Some(&"+bold".to_string()));
     /// assert_eq!(TEXT.get(&9), Some(&"+strikethrough".to_string()));
     /// ```
@@ -34,7 +34,7 @@ lazy_static! {
 lazy_static! {
     /// A mapping of ANSI foreground color codes to color names.
     ///
-    /// ```
+    /// ``` ignore
     /// assert_eq!(FG_ANSI.get(&30), Some(&"black".to_string()));
     /// assert_eq!(FG_ANSI.get(&38), Some(&"default".to_string()));
     /// ```

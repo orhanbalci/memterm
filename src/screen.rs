@@ -1177,7 +1177,9 @@ impl ParserListener for Screen {
                     if let Some(n) = attrs_list.pop() {
                         if n == 5 {
                             if let Some(m) = attrs_list.pop() {
-                                replace.insert(key.to_string(), FG_BG_256[m as usize].clone());
+                                if m < 16 {
+                                    replace.insert(key.to_string(), FG_BG_256[m as usize].clone());
+                                }
                             }
                         } else if n == 2 {
                             if let (Some(r), Some(g), Some(b)) =
@@ -1188,6 +1190,9 @@ impl ParserListener for Screen {
                                     format!("{:02x}{:02x}{:02x}", r, g, b),
                                 );
                             }
+                        } else {
+                            // consider panicing in a strict mode
+                            // panic!("invalid mode for FG BG colors");
                         }
                     }
                 }
@@ -1218,6 +1223,7 @@ mod test {
     use std::collections::HashMap;
 
     use super::{CharOpts, Screen};
+    use crate::graphics::{BG_256, FG_256};
     use crate::parser_listener::ParserListener;
 
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
@@ -1346,5 +1352,146 @@ mod test {
         ];
 
         assert_eq!(tolist(&screen), expected_after_draw);
+    }
+
+    #[test]
+    fn test_blink() {
+        let mut screen = Screen::new(2, 2);
+
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_initial);
+
+        screen.select_graphic_rendition(&[5]); // blink.
+
+        screen.draw("f");
+        let expected_after_draw = vec![
+            vec![
+                CharOpts {
+                    data: "f".to_string(),
+                    fg: "default".to_string(),
+                    bg: "default".to_string(),
+                    blink: true,
+                    ..default_char.clone()
+                },
+                default_char.clone(),
+            ],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_after_draw);
+    }
+
+    #[test]
+    fn test_colors() {
+        let mut screen = Screen::new(2, 2);
+
+        screen.select_graphic_rendition(&[30]); // Set foreground color to black.
+        screen.select_graphic_rendition(&[40]); // Set background color to black.
+        assert_eq!(screen.cursor.attr.fg, "black");
+        assert_eq!(screen.cursor.attr.bg, "black");
+
+        screen.select_graphic_rendition(&[31]); // Set foreground color to red.
+        assert_eq!(screen.cursor.attr.fg, "red");
+        assert_eq!(screen.cursor.attr.bg, "black");
+    }
+
+    #[test]
+    fn test_colors256() {
+        let mut screen = Screen::new(2, 2);
+
+        // a) OK-case.
+        screen.select_graphic_rendition(&[FG_256, 5, 0]);
+        screen.select_graphic_rendition(&[BG_256, 5, 15]);
+        assert_eq!(screen.cursor.attr.fg, "000000");
+        assert_eq!(screen.cursor.attr.bg, "ffffff");
+    }
+
+    #[test]
+    fn test_invalid_color() {
+        //consider panicing in this cases
+        let mut screen = Screen::new(2, 2);
+        screen.select_graphic_rendition(&[48, 5, 100500]);
+    }
+
+    #[test]
+    fn test_colors256_missing_attrs() {
+        let mut screen = Screen::new(2, 2);
+
+        // Test from https://github.com/selectel/pyte/issues/115
+        screen.select_graphic_rendition(&[FG_256]);
+        screen.select_graphic_rendition(&[BG_256]);
+
+        assert_eq!(screen.cursor.attr, CharOpts::default());
+    }
+
+    #[test]
+    fn test_colors24bit() {
+        let mut screen = Screen::new(2, 2);
+
+        // a) OK-case
+        screen.select_graphic_rendition(&[38, 2, 0, 0, 0]);
+        screen.select_graphic_rendition(&[48, 2, 255, 255, 255]);
+        assert_eq!(screen.cursor.attr.fg, "000000");
+        assert_eq!(screen.cursor.attr.bg, "ffffff");
+    }
+
+    #[test]
+    fn test_colors24bit_invalid_color() {
+        // consider panicing in this cases
+        let mut screen = Screen::new(2, 2);
+        screen.select_graphic_rendition(&[48, 2, 255]);
+    }
+
+    #[test]
+    fn test_colors_aixterm() {
+        let mut screen = Screen::new(2, 2);
+
+        // a) foreground color.
+        screen.select_graphic_rendition(&[94]);
+        assert_eq!(screen.cursor.attr.fg, "brightblue");
+
+        // b) background color.
+        screen.select_graphic_rendition(&[104]);
+        assert_eq!(screen.cursor.attr.bg, "brightblue");
+    }
+
+    #[test]
+    fn test_colors_ignore_invalid() {
+        let mut screen = Screen::new(2, 2);
+        let default_attrs = screen.cursor.attr.clone();
+
+        screen.select_graphic_rendition(&[100500]);
+        assert_eq!(screen.cursor.attr, default_attrs);
+
+        screen.select_graphic_rendition(&[38, 100500]);
+        assert_eq!(screen.cursor.attr, default_attrs);
+
+        screen.select_graphic_rendition(&[48, 100500]);
+        assert_eq!(screen.cursor.attr, default_attrs);
+    }
+
+    #[test]
+    fn test_reset_resets_colors() {
+        let mut screen = Screen::new(2, 2);
+        let default_char = CharOpts::default();
+        let expected_initial = vec![
+            vec![default_char.clone(), default_char.clone()],
+            vec![default_char.clone(), default_char.clone()],
+        ];
+
+        assert_eq!(tolist(&screen), expected_initial);
+
+        screen.select_graphic_rendition(&[30]); // Set foreground color to black.
+        screen.select_graphic_rendition(&[40]); // Set background color to black.
+        assert_eq!(screen.cursor.attr.fg, "black");
+        assert_eq!(screen.cursor.attr.bg, "black");
+
+        screen.select_graphic_rendition(&[0]); // Reset all attributes.
+        assert_eq!(screen.cursor.attr, CharOpts::default());
     }
 }

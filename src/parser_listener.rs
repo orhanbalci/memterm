@@ -60,7 +60,7 @@ pub trait ParserListener {
     fn tab(&mut self);
     fn cariage_return(&mut self);
 
-    fn draw(&self, input: &str);
+    fn draw(&mut self, input: &str);
 
     //csi commands
     fn insert_characters(&mut self, count: Option<u32>);

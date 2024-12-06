@@ -2,11 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 
 use lazy_static::lazy_static;
-use unicode_width::UnicodeWidthStr;
+use unicode_normalization::char::is_combining_mark;
+use unicode_normalization::{char, UnicodeNormalization};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::charset::{LAT1_MAP, MAPS, VT100_MAP};
 use crate::graphics::{BG_256, BG_AIXTERM, BG_ANSI, FG_256, FG_AIXTERM, FG_ANSI, FG_BG_256, TEXT};
-use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, LNM};
+use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, IRM, LNM};
 use crate::parser_listener::ParserListener;
 
 #[derive(Clone)]
@@ -23,6 +25,20 @@ pub struct CharOpts {
 }
 
 impl CharOpts {
+    fn clone_with_data(&self, data: String) -> Self {
+        Self {
+            data,
+            fg: self.fg.clone(),
+            bg: self.bg.clone(),
+            bold: self.bold,
+            italics: self.italics,
+            underscore: self.underscore,
+            strikethrough: self.strikethrough,
+            reverse: self.reverse,
+            blink: self.blink,
+        }
+    }
+
     fn update_from_map(&mut self, map: HashMap<String, String>) {
         for (key, value) in map {
             match key.as_str() {
@@ -522,8 +538,99 @@ impl ParserListener for Screen {
         self.cursor.x = 0;
     }
 
-    fn draw(&self, _input: &str) {
-        todo!()
+    /// Display decoded characters at the current cursor position and
+    /// advances the cursor if `DECAWM` is set.
+    ///
+    /// # Parameters
+    /// - `data`: Text to display.
+    ///
+    /// # Version
+    /// - Changed in version 0.5.0: Character width is taken into account.
+    ///   Specifically, zero-width and unprintable characters do not affect
+    ///   screen state. Full-width characters are rendered into two consecutive
+    ///   character containers.
+    fn draw(&mut self, data: &str) {
+        let data = data
+            .chars()
+            .map(|c| {
+                if self.charset == Charset::G1 {
+                    self.g1_charset[c as usize]
+                } else {
+                    self.g0_charset[c as usize]
+                }
+            })
+            .collect::<String>();
+
+        for char in data.chars() {
+            let char_width = char.width().unwrap_or(0);
+
+            // If this was the last column in a line and auto wrap mode is
+            // enabled, move the cursor to the beginning of the next line,
+            // otherwise replace characters already displayed with newly
+            // entered.
+            if self.cursor.x == self.columns {
+                if self.mode.contains(&DECAWM) {
+                    self.dirty.insert(self.cursor.y);
+                    self.cariage_return();
+                    self.linefeed();
+                } else if char_width > 0 {
+                    self.cursor.x = self.cursor.x.saturating_sub(char_width as u32);
+                }
+            }
+
+            // If Insert mode is set, new characters move old characters to
+            // the right, otherwise terminal is in Replace mode and new
+            // characters replace old characters at cursor position.
+            if self.mode.contains(&IRM) && char_width > 0 {
+                self.insert_characters(Some(char_width as u32));
+            }
+
+            let line = self
+                .buffer
+                .entry(self.cursor.y)
+                .or_insert_with(HashMap::new);
+            if char_width == 1 {
+                line.insert(
+                    self.cursor.x,
+                    self.cursor.attr.clone_with_data(char.to_string()),
+                );
+            } else if char_width == 2 {
+                line.insert(
+                    self.cursor.x,
+                    self.cursor.attr.clone_with_data(char.to_string()),
+                );
+                if self.cursor.x + 1 < self.columns {
+                    line.insert(
+                        self.cursor.x + 1,
+                        self.cursor.attr.clone_with_data("".to_string()),
+                    );
+                }
+            } else if char_width == 0 && is_combining_mark(char) {
+                if self.cursor.x > 0 {
+                    if let Some(last) = line.get_mut(&(self.cursor.x - 1)) {
+                        last.data = last.data.nfc().collect::<String>() + &char.to_string();
+                    }
+                } else if self.cursor.y > 0 {
+                    if let Some(last) = self
+                        .buffer
+                        .get_mut(&(self.cursor.y - 1))
+                        .and_then(|l| l.get_mut(&(self.columns - 1)))
+                    {
+                        last.data = last.data.nfc().collect::<String>() + &char.to_string();
+                    }
+                }
+            } else {
+                break; // Unprintable character or doesn't advance the cursor.
+            }
+
+            // .. note:: We can't use `cursor_forward()`, because that
+            //           way, we'll never know when to linefeed.
+            if char_width > 0 {
+                self.cursor.x = std::cmp::min(self.cursor.x + char_width as u32, self.columns);
+            }
+        }
+
+        self.dirty.insert(self.cursor.y);
     }
 
     /// Insert the indicated # of blank characters at the cursor

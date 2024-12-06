@@ -55,7 +55,7 @@ impl ParserListener for DebugScreen {
         println!("carriage return")
     }
 
-    fn draw(&self, input: &str) {
+    fn draw(&mut self, input: &str) {
         println!("draw input {}", input);
     }
 

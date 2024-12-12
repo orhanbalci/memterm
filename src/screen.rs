@@ -4,7 +4,7 @@ use std::fmt::Display;
 use lazy_static::lazy_static;
 use unicode_normalization::char::is_combining_mark;
 use unicode_normalization::{char, UnicodeNormalization};
-use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+use unicode_width::UnicodeWidthChar;
 
 use crate::charset::{LAT1_MAP, MAPS, VT100_MAP};
 use crate::graphics::{BG_256, BG_AIXTERM, BG_ANSI, FG_256, FG_AIXTERM, FG_ANSI, FG_BG_256, TEXT};
@@ -1269,6 +1269,7 @@ mod test {
     use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, IRM, LNM};
     use crate::parser::Parser;
     use crate::parser_listener::ParserListener;
+    use crate::screen::Charset;
 
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
         for (y, line) in lines.iter().enumerate() {
@@ -1851,7 +1852,7 @@ mod test {
         assert_eq!(screen.display(), vec!["foobar    ".to_string()]);
     }
     #[test]
-    fn test_draw_utf8() {
+    fn draw_utf8() {
         let screen = Arc::new(Mutex::new(Screen::new(1, 1)));
         let mut parser = Parser::new(screen.clone());
 
@@ -1862,10 +1863,169 @@ mod test {
     }
 
     #[test]
-    fn test_draw_width2() {
+    fn draw_width2() {
         let mut screen = Screen::new(10, 1);
         screen.draw("コンニチハ"); // Each character takes 2 columns
         assert_eq!(screen.cursor.x, screen.columns);
         assert_eq!(screen.display(), vec!["コンニチハ".to_string()]);
+    }
+
+    #[test]
+    fn draw_width2_line_end() {
+        let mut screen = Screen::new(10, 1);
+        screen.draw(" コンニチハ"); // Space followed by 5 double-width characters
+        assert_eq!(screen.cursor.x, screen.columns);
+        assert_eq!(screen.display(), vec![" コンニチハ".to_string()]);
+    }
+
+    #[test]
+    fn draw_width0_combining() {
+        let mut screen = Screen::new(4, 2);
+
+        // a) Test with no previous character
+        screen.draw("\u{0308}"); // COMBINING DIAERESIS
+        assert_eq!(
+            screen.display(),
+            vec!["    ".to_string(), "    ".to_string()]
+        );
+
+        // Draw "bad"
+        screen.draw("bad");
+
+        // b) Test with previous character on the same line
+        screen.draw("\u{0308}"); // COMBINING DIAERESIS
+        assert_eq!(
+            screen.display(),
+            vec!["bad̈ ".to_string(), "    ".to_string()]
+        );
+
+        // c) Test with previous character on the previous line
+        screen.draw("!");
+        screen.draw("\u{0308}"); // COMBINING DIAERESIS
+        assert_eq!(
+            screen.display(),
+            vec!["bad̈!̈".to_string(), "    ".to_string()]
+        );
+    }
+
+    #[test]
+    fn draw_width0_irm() {
+        let mut screen = Screen::new(10, 1);
+        screen.set_mode(&[IRM], false); // Enable Insert Mode
+
+        // Draw zero width space
+        screen.draw("\u{200B}"); // ZERO WIDTH SPACE
+
+        // Draw DELETE character
+        screen.draw("\u{0007}"); // DELETE/BELL character
+
+        // Check that screen is still empty (filled with spaces)
+        assert_eq!(screen.display(), vec!["          ".to_string()]); // 10 spaces
+    }
+
+    #[test]
+    fn draw_width0_irm_detailed() {
+        let mut screen = Screen::new(10, 1);
+
+        // Initial state check
+        assert_eq!(screen.display(), vec!["          ".to_string()]); // 10 spaces
+        assert_eq!(screen.cursor.x, 0);
+
+        // Enable Insert Mode
+        screen.set_mode(&[IRM], false);
+        assert!(screen.mode.contains(&IRM));
+
+        // Draw zero width space and verify no change
+        screen.draw("\u{200B}"); // ZERO WIDTH SPACE
+        assert_eq!(screen.display(), vec!["          ".to_string()]); // Still 10 spaces
+        assert_eq!(screen.cursor.x, 0); // Cursor shouldn't move
+
+        // Draw DELETE character and verify no change
+        screen.draw("\u{0007}"); // DELETE/BELL character
+        assert_eq!(screen.display(), vec!["          ".to_string()]); // Still 10 spaces
+        assert_eq!(screen.cursor.x, 0); // Cursor shouldn't move
+
+        // Final state verification
+        assert_eq!(screen.display(), vec![" ".repeat(screen.columns as usize)]);
+        assert!(screen.mode.contains(&IRM)); // IRM should still be enabled
+    }
+
+    #[test]
+    fn draw_width0_decawm_off() {
+        let mut screen = Screen::new(10, 1);
+
+        // Turn off auto-wrap mode
+        screen.reset_mode(&[DECAWM], false);
+        assert!(!screen.mode.contains(&DECAWM));
+
+        // Draw space followed by Japanese characters
+        screen.draw(" コンニチハ");
+        assert_eq!(screen.cursor.x, screen.columns);
+
+        // Draw zero-width characters and verify cursor doesn't move
+        screen.draw("\u{200B}"); // ZERO WIDTH SPACE
+        assert_eq!(screen.cursor.x, screen.columns);
+
+        screen.draw("\u{0007}"); // DELETE/BELL character
+        assert_eq!(screen.cursor.x, screen.columns);
+    }
+
+    #[test]
+    fn draw_width0_decawm_off_detailed() {
+        let mut screen = Screen::new(10, 1);
+
+        // Initial state check
+        assert_eq!(screen.cursor.x, 0);
+        assert!(screen.mode.contains(&DECAWM)); // DECAWM should be on by default
+
+        // Turn off auto-wrap mode
+        screen.reset_mode(&[DECAWM], false);
+        assert!(!screen.mode.contains(&DECAWM));
+
+        // Draw space followed by Japanese characters
+        screen.draw(" コンニチハ");
+
+        // Verify cursor is at end of line
+        assert_eq!(screen.cursor.x, screen.columns);
+        assert_eq!(screen.display(), vec![" コンニチハ".to_string()]);
+
+        // Try to draw zero-width space
+        screen.draw("\u{200B}"); // ZERO WIDTH SPACE
+                                 // Verify cursor hasn't moved
+        assert_eq!(screen.cursor.x, screen.columns);
+        assert_eq!(screen.display(), vec![" コンニチハ".to_string()]);
+
+        // Try to draw DELETE character
+        screen.draw("\u{0007}"); // DELETE/BELL character
+                                 // Verify cursor still hasn't moved
+        assert_eq!(screen.cursor.x, screen.columns);
+        assert_eq!(screen.display(), vec![" コンニチハ".to_string()]);
+
+        // Final state verification
+        assert_eq!(screen.cursor.x, screen.columns);
+        assert!(!screen.mode.contains(&DECAWM));
+    }
+
+    #[test]
+    fn test_draw_cp437() {
+        let mut screen = Screen::new(5, 1);
+        assert_eq!(screen.charset, Charset::G0);
+
+        screen.define_charset("U", "(");
+        // In Python this would be: "α ± ε".encode("cp437")
+        // We're simulating feeding CP437 encoded bytes
+        let cp437_text: [u8; 5] = [
+            0xE0, // α
+            0x20, // space
+            0xF1, // ±
+            0x20, // space
+            0xEE, // ε
+        ];
+
+        for &byte in cp437_text.iter() {
+            screen.draw(&(byte as char).to_string());
+        }
+
+        assert_eq!(screen.display(), vec!["α ± ε".to_string()]);
     }
 }

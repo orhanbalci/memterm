@@ -1,3 +1,8 @@
+use std::collections::HashSet;
+
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use crate::ascii;
 
 //C0 codes
@@ -59,3 +64,33 @@ pub const RIS: &str = ascii!(6 / 3);
 pub const BASIC: &[&str; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
 pub const ALLOWED_IN_CSI: &[&str; 7] = &[BEL, BS, HT, LF, VT, FF, CR];
 pub const OSC_TERMINATORS: &[&str; 2] = &[BEL, ST];
+
+lazy_static! {
+// Special characters set
+    pub static ref SPECIAL: HashSet<&'static str> = {
+        let mut special = HashSet::new();
+        special.insert(ESC);
+        special.insert(CSI);
+        // Add NUL and DEL if you have them defined
+        special.insert(OSC);
+
+        // Add all basic control characters
+        for &key in BASIC {
+            special.insert(key);
+        }
+        special
+    };
+
+    // Text pattern regex
+    pub static ref TEXT_PATTERN: Regex = {
+        let pattern = format!(
+            "[^{}]+",
+            SPECIAL.iter()
+                .map(|s| regex::escape(s))
+                .collect::<Vec<_>>()
+                .join("")
+        );
+        Regex::new(&pattern).unwrap()
+    };
+
+}

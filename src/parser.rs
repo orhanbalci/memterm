@@ -10,19 +10,26 @@ use crate::parser_listener::ParserListener;
 pub struct ParserState {
     use_utf8: bool,
 }
-pub struct Parser<'a> {
+pub struct Parser<'a, T>
+where
+    T: ParserListener + Send + 'a,
+{
     parser_fsm: Generator<'a, String, Option<bool>>,
     _parser_state: Arc<Mutex<ParserState>>,
+    taking_plain_text: bool,
+    listener: Arc<Mutex<T>>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new<T>(listener: Arc<Mutex<T>>) -> Self
-    where
-        T: ParserListener + Send + 'a,
-    {
+impl<'a, T> Parser<'a, T>
+where
+    T: ParserListener + Send + 'a,
+{
+    pub fn new(listener: Arc<Mutex<T>>) -> Self {
         let parser_state = Arc::new(Mutex::new(ParserState { use_utf8: true }));
         let parser_state_cloned = parser_state.clone();
         return Self {
+            listener: listener.clone(),
+            taking_plain_text: true,
             parser_fsm: Gn::<String>::new_scoped(move |mut co| {
                 loop {
                     let mut char = co.yield_(Some(true)).unwrap_or_default();
@@ -126,8 +133,35 @@ impl<'a> Parser<'a> {
         };
     }
 
-    pub fn feed(&mut self, input: String) {
-        self.parser_fsm.send(input);
+    // pub fn feed(&mut self, input: String) {
+    //     input.chars().for_each(|c| {
+    //         self.parser_fsm.send(c.to_string());
+    //     });
+    // }
+
+    pub fn feed(&mut self, data: String) {
+        let length = data.len();
+        let mut offset = 0;
+
+        while offset < length {
+            if self.taking_plain_text {
+                if let Some(mat) = TEXT_PATTERN.find_at(&data, offset) {
+                    let (start, end) = (mat.start(), mat.end());
+                    let text = &data[start..end];
+                    text.chars().for_each(|c| {
+                        self.listener.lock().unwrap().draw(&c.to_string());
+                    });
+                    offset = end;
+                } else {
+                    self.taking_plain_text = false;
+                }
+            } else {
+                let next_char = &data[offset..offset + 1];
+                self.taking_plain_text =
+                    self.parser_fsm.send(next_char.to_string()).unwrap_or(false);
+                offset += 1;
+            }
+        }
     }
 }
 

@@ -192,10 +192,14 @@ impl Screen {
                     continue;
                 }
                 let char = line.entry(x).or_insert(default_char.clone()).data.clone();
-                is_wide_char = UnicodeWidthStr::width(
-                    char.get(0..1)
-                        .expect("at least 1 character empty string expected"),
-                ) == 2;
+                dbg!(char.clone());
+                is_wide_char = char
+                    .chars()
+                    .next()
+                    .expect("can not read char")
+                    .width()
+                    .is_some_and(|s| s == 2);
+                dbg!(is_wide_char);
                 result.push_str(&char);
             }
 
@@ -609,9 +613,17 @@ impl ParserListener for Screen {
             .chars()
             .map(|c| {
                 if self.charset == Charset::G1 {
-                    self.g1_charset[c as usize]
+                    if c as usize > 255 {
+                        c
+                    } else {
+                        self.g1_charset[c as usize]
+                    }
                 } else {
-                    self.g0_charset[c as usize]
+                    if c as usize > 255 {
+                        c
+                    } else {
+                        self.g0_charset[c as usize]
+                    }
                 }
             })
             .collect::<String>();
@@ -1250,10 +1262,12 @@ impl ParserListener for Screen {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
 
     use super::{CharOpts, Screen};
     use crate::graphics::{BG_256, FG_256};
-    use crate::modes::{DECCOLM, DECOM, DECSCNM, DECTCEM, LNM};
+    use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, IRM, LNM};
+    use crate::parser::Parser;
     use crate::parser_listener::ParserListener;
 
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
@@ -1293,7 +1307,7 @@ mod test {
         result
     }
     #[test]
-    fn test_initialize_char() {
+    fn initialize_char() {
         // List of fields in CharOpts struct
         let fields = vec![
             "data",
@@ -1332,7 +1346,7 @@ mod test {
     }
 
     #[test]
-    fn test_remove_non_existant_attribute() {
+    fn remove_non_existant_attribute() {
         let mut screen = Screen::new(2, 2);
 
         let default_char = CharOpts::default();
@@ -1349,7 +1363,7 @@ mod test {
     }
 
     #[test]
-    fn test_attributes() {
+    fn attributes() {
         let mut screen = Screen::new(2, 2);
 
         let default_char = CharOpts::default();
@@ -1385,7 +1399,7 @@ mod test {
     }
 
     #[test]
-    fn test_blink() {
+    fn blink() {
         let mut screen = Screen::new(2, 2);
 
         let default_char = CharOpts::default();
@@ -1417,7 +1431,7 @@ mod test {
     }
 
     #[test]
-    fn test_colors() {
+    fn colors() {
         let mut screen = Screen::new(2, 2);
 
         screen.select_graphic_rendition(&[30]); // Set foreground color to black.
@@ -1431,7 +1445,7 @@ mod test {
     }
 
     #[test]
-    fn test_colors256() {
+    fn colors256() {
         let mut screen = Screen::new(2, 2);
 
         // a) OK-case.
@@ -1442,14 +1456,14 @@ mod test {
     }
 
     #[test]
-    fn test_invalid_color() {
+    fn invalid_color() {
         //consider panicing in this cases
         let mut screen = Screen::new(2, 2);
         screen.select_graphic_rendition(&[48, 5, 100500]);
     }
 
     #[test]
-    fn test_colors256_missing_attrs() {
+    fn colors256_missing_attrs() {
         let mut screen = Screen::new(2, 2);
 
         // Test from https://github.com/selectel/pyte/issues/115
@@ -1460,7 +1474,7 @@ mod test {
     }
 
     #[test]
-    fn test_colors24bit() {
+    fn colors24bit() {
         let mut screen = Screen::new(2, 2);
 
         // a) OK-case
@@ -1471,14 +1485,14 @@ mod test {
     }
 
     #[test]
-    fn test_colors24bit_invalid_color() {
+    fn colors24bit_invalid_color() {
         // consider panicing in this cases
         let mut screen = Screen::new(2, 2);
         screen.select_graphic_rendition(&[48, 2, 255]);
     }
 
     #[test]
-    fn test_colors_aixterm() {
+    fn colors_aixterm() {
         let mut screen = Screen::new(2, 2);
 
         // a) foreground color.
@@ -1491,7 +1505,7 @@ mod test {
     }
 
     #[test]
-    fn test_colors_ignore_invalid() {
+    fn colors_ignore_invalid() {
         let mut screen = Screen::new(2, 2);
         let default_attrs = screen.cursor.attr.clone();
 
@@ -1506,7 +1520,7 @@ mod test {
     }
 
     #[test]
-    fn test_reset_resets_colors() {
+    fn reset_resets_colors() {
         let mut screen = Screen::new(2, 2);
         let default_char = CharOpts::default();
         let expected_initial = vec![
@@ -1526,7 +1540,7 @@ mod test {
     }
 
     #[test]
-    fn test_reset_works_between_attributes() {
+    fn reset_works_between_attributes() {
         let mut screen = Screen::new(2, 2);
 
         let default_char = CharOpts::default();
@@ -1544,7 +1558,7 @@ mod test {
     }
 
     #[test]
-    fn test_multi_attribs() {
+    fn multi_attribs() {
         let mut screen = Screen::new(2, 2);
 
         let default_char = CharOpts::default();
@@ -1563,7 +1577,7 @@ mod test {
     }
 
     #[test]
-    fn test_attributes_reset() {
+    fn attributes_reset() {
         let mut screen = Screen::new(2, 2);
         screen.set_mode(&[LNM], false);
 
@@ -1610,7 +1624,7 @@ mod test {
     }
 
     #[test]
-    fn test_resize() {
+    fn resize() {
         // Test initial resize behavior
         let mut screen = Screen::new(2, 2);
         screen.set_mode(&[DECOM], false);
@@ -1688,7 +1702,7 @@ mod test {
     }
 
     #[test]
-    fn test_resize_same() {
+    fn resize_same() {
         let mut screen = Screen::new(2, 2);
         screen.dirty.clear();
         screen.resize(Some(2), Some(2));
@@ -1696,7 +1710,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_mode() {
+    fn set_mode() {
         // Test DECCOLM mode
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![]);
@@ -1751,5 +1765,107 @@ mod test {
         assert!(!screen.cursor.hidden);
         screen.reset_mode(&[DECTCEM], false);
         assert!(screen.cursor.hidden);
+    }
+
+    #[test]
+    fn draw() {
+        // DECAWM on (default)
+        let mut screen = Screen::new(3, 3);
+        screen.set_mode(&[LNM], false);
+        assert!(screen.mode.contains(&DECAWM));
+
+        for ch in "abc".chars() {
+            screen.draw(&ch.to_string());
+        }
+
+        assert_eq!(
+            screen.display(),
+            vec!["abc".to_string(), "   ".to_string(), "   ".to_string()]
+        );
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 3));
+
+        // One more character -- now we got a linefeed!
+        screen.draw("a");
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 1));
+
+        // DECAWM is off
+        let mut screen = Screen::new(3, 3);
+        screen.reset_mode(&[DECAWM], false);
+
+        for ch in "abc".chars() {
+            screen.draw(&ch.to_string());
+        }
+
+        assert_eq!(
+            screen.display(),
+            vec!["abc".to_string(), "   ".to_string(), "   ".to_string()]
+        );
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 3));
+
+        // No linefeed is issued on the end of the line ...
+        screen.draw("a");
+        assert_eq!(
+            screen.display(),
+            vec!["aba".to_string(), "   ".to_string(), "   ".to_string()]
+        );
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 3));
+
+        // IRM mode is on, expecting new characters to move the old ones
+        // instead of replacing them
+        screen.set_mode(&[IRM], false);
+        screen.cursor_position(None, None);
+        screen.draw("x");
+        assert_eq!(
+            screen.display(),
+            vec!["xab".to_string(), "   ".to_string(), "   ".to_string()]
+        );
+
+        screen.cursor_position(None, None);
+        screen.draw("y");
+        assert_eq!(
+            screen.display(),
+            vec!["yxa".to_string(), "   ".to_string(), "   ".to_string()]
+        );
+    }
+
+    #[test]
+    fn draw_russian() {
+        // Test from https://github.com/selectel/pyte/issues/65
+        let screen = Arc::new(Mutex::new(Screen::new(20, 1)));
+        let mut parser = Parser::new(screen.clone());
+
+        // Feed the Russian text to the parser
+        parser.feed("Нерусский текст".to_string());
+
+        assert_eq!(
+            screen.lock().unwrap().display(),
+            vec!["Нерусский текст     ".to_string()]
+        );
+    }
+
+    #[test]
+    fn draw_multiple_chars() {
+        let mut screen = Screen::new(10, 1);
+        screen.draw("foobar");
+        assert_eq!(screen.cursor.x, 6);
+        assert_eq!(screen.display(), vec!["foobar    ".to_string()]);
+    }
+    #[test]
+    fn test_draw_utf8() {
+        let screen = Arc::new(Mutex::new(Screen::new(1, 1)));
+        let mut parser = Parser::new(screen.clone());
+
+        // Feed UTF-8 bytes for right double quotation mark (")
+        parser.feed("\u{201D}".to_string()); // Unicode escape for "
+
+        assert_eq!(screen.lock().unwrap().display(), vec!["”".to_string()]);
+    }
+
+    #[test]
+    fn test_draw_width2() {
+        let mut screen = Screen::new(10, 1);
+        screen.draw("コンニチハ"); // Each character takes 2 columns
+        assert_eq!(screen.cursor.x, screen.columns);
+        assert_eq!(screen.display(), vec!["コンニチハ".to_string()]);
     }
 }

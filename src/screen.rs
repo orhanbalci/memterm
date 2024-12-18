@@ -272,7 +272,7 @@ impl Screen {
     // :param int bottom: the biggest line number that is scrolled.
     pub fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {
         // XXX 0 corresponds to the CSI with no parameters.
-        if top.or(Some(0)).expect("unexpected bottom value") == 0 && bottom.is_none() {
+        if top.or(Some(0)).expect("unexpected top value") == 0 && bottom.is_none() {
             self.margins = None;
             return;
         }
@@ -448,20 +448,33 @@ impl ParserListener for Screen {
             .expect("unexpected margin found");
 
         if self.cursor.y == bottom {
-            // TODO: mark only the lines within margins?
+            // Mark all lines as dirty
             self.dirty.extend(0..self.lines);
             let mut new_buffer: HashMap<u32, HashMap<u32, CharOpts>> = HashMap::new();
-
-            self.buffer.iter().for_each(|(&outer_key, inner_map)| {
-                if outer_key >= top {
-                    new_buffer.insert(outer_key + 1, (*inner_map).clone());
-                } else if outer_key < bottom {
-                    new_buffer.insert(outer_key + 1, (*inner_map).clone());
+            // Copy lines before top margin unchanged
+            for y in 0..top {
+                if let Some(line) = self.buffer.get(&y) {
+                    new_buffer.insert(y, line.clone());
                 }
-                new_buffer.insert(outer_key, (*inner_map).clone());
-            });
-            new_buffer.remove(&bottom);
+            }
+            // Move lines up (decrement keys)
+            for y in top..bottom {
+                if let Some(line) = self.buffer.get(&(y + 1)) {
+                    new_buffer.insert(y, line.clone());
+                }
+            }
+
+            // Insert empty line at bottom
             new_buffer.insert(bottom, HashMap::new());
+
+            // Copy lines after bottom margin unchanged
+            for y in (bottom + 1)..self.lines {
+                if let Some(line) = self.buffer.get(&y) {
+                    new_buffer.insert(y, line.clone());
+                }
+            }
+
+            // Replace old buffer with new one
             self.buffer = new_buffer;
         } else {
             self.cursor_down(None);
@@ -2003,7 +2016,7 @@ mod test {
     }
 
     #[test]
-    fn test_draw_cp437() {
+    fn draw_cp437() {
         let mut screen = Screen::new(5, 1);
         assert_eq!(screen.charset, Charset::G0);
 
@@ -2026,7 +2039,7 @@ mod test {
     }
 
     #[test]
-    fn test_display_wcwidth() {
+    fn display_wcwidth() {
         let mut screen = Screen::new(10, 1);
         screen.draw("コンニチハ");
 
@@ -2034,7 +2047,7 @@ mod test {
     }
 
     #[test]
-    fn test_draw_with_carriage_return() {
+    fn draw_with_carriage_return() {
         let line = "ipcs -s | grep nobody |awk '{print$2}'|xargs -n1 ipcrm sem ;ps aux|grep -P 'httpd|fcgi'|grep -v grep|awk '{print$2 \x0D}'|xargs kill -9;/etc/init.d/httpd startssl";
 
         let screen = Arc::new(Mutex::new(Screen::new(50, 3)));
@@ -2049,5 +2062,191 @@ mod test {
                 "}'|xargs kill -9;/etc/init.d/httpd startssl       ".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn carriage_return() {
+        let mut screen = Screen::new(3, 3);
+        screen.cursor.x = 2;
+        screen.cariage_return();
+
+        assert_eq!(screen.cursor.x, 0);
+    }
+
+    #[test]
+    fn test_index() {
+        // a) Test basic index behavior
+        let mut screen = Screen::new(2, 2);
+        update(&mut screen, vec!["wo", "ot"], vec![1]);
+
+        // Test indexing on non-last row
+        screen.index();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+
+        let expected = vec![
+            vec![
+                CharOpts { data: "w".to_string(), ..CharOpts::default() },
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+            ],
+            vec![
+                CharOpts {
+                    data: "o".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+                CharOpts {
+                    data: "t".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+            ],
+        ];
+        assert_eq!(tolist(&screen), expected);
+
+        // b) Test indexing on last row
+        screen.index();
+        assert_eq!(screen.cursor.y, 1);
+
+        let expected = vec![
+            vec![
+                CharOpts {
+                    data: "o".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+                CharOpts {
+                    data: "t".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+            ],
+            vec![screen.default_char(), screen.default_char()],
+        ];
+        assert_eq!(tolist(&screen), expected);
+
+        // c) Test with margins
+        let mut screen = Screen::new(2, 5);
+        update(&mut screen, vec!["bo", "sh", "th", "er", "oh"], vec![1, 2]);
+        screen.set_margins(Some(2), Some(4));
+        screen.cursor.y = 3;
+
+        // First index
+        screen.index();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (3, 0));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "bo".to_string(),
+                "th".to_string(),
+                "er".to_string(),
+                "  ".to_string(),
+                "oh".to_string()
+            ]
+        );
+
+        let expected = vec![
+            vec![
+                CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+            ],
+            vec![
+                CharOpts {
+                    data: "t".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+                CharOpts {
+                    data: "h".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+            ],
+            vec![
+                CharOpts { data: "e".to_string(), ..CharOpts::default() },
+                CharOpts { data: "r".to_string(), ..CharOpts::default() },
+            ],
+            vec![screen.default_char(), screen.default_char()],
+            vec![
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                CharOpts { data: "h".to_string(), ..CharOpts::default() },
+            ],
+        ];
+        assert_eq!(tolist(&screen), expected);
+
+        // Second index
+        screen.index();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (3, 0));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "bo".to_string(),
+                "er".to_string(),
+                "  ".to_string(),
+                "  ".to_string(),
+                "oh".to_string()
+            ]
+        );
+
+        let expected = vec![
+            vec![
+                CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+            ],
+            vec![
+                CharOpts { data: "e".to_string(), ..CharOpts::default() },
+                CharOpts { data: "r".to_string(), ..CharOpts::default() },
+            ],
+            vec![screen.default_char(), screen.default_char()],
+            vec![screen.default_char(), screen.default_char()],
+            vec![
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                CharOpts { data: "h".to_string(), ..CharOpts::default() },
+            ],
+        ];
+        assert_eq!(tolist(&screen), expected);
+
+        // Third index
+        screen.index();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (3, 0));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "bo".to_string(),
+                "  ".to_string(),
+                "  ".to_string(),
+                "  ".to_string(),
+                "oh".to_string()
+            ]
+        );
+
+        let expected = vec![
+            vec![
+                CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+            ],
+            vec![screen.default_char(), screen.default_char()],
+            vec![screen.default_char(), screen.default_char()],
+            vec![screen.default_char(), screen.default_char()],
+            vec![
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                CharOpts { data: "h".to_string(), ..CharOpts::default() },
+            ],
+        ];
+        assert_eq!(tolist(&screen), expected);
+
+        // Fourth index (nothing should change)
+        screen.index();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (3, 0));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "bo".to_string(),
+                "  ".to_string(),
+                "  ".to_string(),
+                "  ".to_string(),
+                "oh".to_string()
+            ]
+        );
+        assert_eq!(tolist(&screen), expected);
     }
 }

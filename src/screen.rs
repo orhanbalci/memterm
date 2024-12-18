@@ -1302,6 +1302,29 @@ mod test {
     use crate::parser_listener::ParserListener;
     use crate::screen::Charset;
 
+    /// Macro to create CharOpts with optional color
+    macro_rules! co {
+        (default) => {
+            CharOpts::default()
+        };
+        ($c:literal) => {
+            CharOpts { data: $c.to_string(), ..CharOpts::default() }
+        };
+        ($c:literal, fg = $color:literal) => {
+            CharOpts {
+                data: $c.to_string(),
+                fg: $color.to_string(),
+                ..CharOpts::default()
+            }
+        };
+    }
+
+    macro_rules! cv {
+        ($(co !($($arg:tt)*)),+ $(,)?) => {
+            vec![ $(co!($($arg)*)),+ ]
+        };
+    }
+
     pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
         for (y, line) in lines.iter().enumerate() {
             for (x, char) in line.chars().enumerate() {
@@ -1381,10 +1404,9 @@ mod test {
     fn remove_non_existant_attribute() {
         let mut screen = Screen::new(2, 2);
 
-        let default_char = CharOpts::default();
         let expected = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected);
@@ -1400,8 +1422,8 @@ mod test {
 
         let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected_initial);
@@ -1436,8 +1458,8 @@ mod test {
 
         let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected_initial);
@@ -1554,10 +1576,9 @@ mod test {
     #[test]
     fn reset_resets_colors() {
         let mut screen = Screen::new(2, 2);
-        let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected_initial);
@@ -1575,10 +1596,9 @@ mod test {
     fn reset_works_between_attributes() {
         let mut screen = Screen::new(2, 2);
 
-        let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected_initial);
@@ -1593,10 +1613,9 @@ mod test {
     fn multi_attribs() {
         let mut screen = Screen::new(2, 2);
 
-        let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected_initial);
@@ -1615,8 +1634,8 @@ mod test {
 
         let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
 
         assert_eq!(tolist(&screen), expected_initial);
@@ -1665,10 +1684,9 @@ mod test {
         assert_eq!(screen.columns, 2);
         assert_eq!(screen.lines, 2);
 
-        let default_char = CharOpts::default();
         let expected_initial = vec![
-            vec![default_char.clone(), default_char.clone()],
-            vec![default_char.clone(), default_char.clone()],
+            cv![co!(default), co!(default)],
+            cv![co!(default), co!(default)],
         ];
         assert_eq!(tolist(&screen), expected_initial);
 
@@ -1678,21 +1696,9 @@ mod test {
         assert_eq!(screen.lines, 3);
 
         let expected_larger = vec![
-            vec![
-                default_char.clone(),
-                default_char.clone(),
-                default_char.clone(),
-            ],
-            vec![
-                default_char.clone(),
-                default_char.clone(),
-                default_char.clone(),
-            ],
-            vec![
-                default_char.clone(),
-                default_char.clone(),
-                default_char.clone(),
-            ],
+            cv![co!(default), co!(default), co!(default)],
+            cv![co!(default), co!(default), co!(default)],
+            cv![co!(default), co!(default), co!(default)],
         ];
         assert_eq!(tolist(&screen), expected_larger);
         assert!(screen.mode.contains(&DECOM));
@@ -2330,15 +2336,9 @@ mod test {
         );
 
         let expected = vec![
-            vec![
-                CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("b"), co!("o")],
             vec![screen.default_char(), screen.default_char()],
-            vec![
-                CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                CharOpts { data: "h".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("s"), co!("h")],
             vec![
                 CharOpts {
                     data: "t".to_string(),
@@ -2351,10 +2351,7 @@ mod test {
                     ..CharOpts::default()
                 },
             ],
-            vec![
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                CharOpts { data: "h".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("o"), co!("h")],
         ];
         assert_eq!(tolist(&screen), expected);
 
@@ -2373,20 +2370,11 @@ mod test {
         );
 
         let expected = vec![
-            vec![
-                CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("b"), co!("o")],
             vec![screen.default_char(), screen.default_char()],
             vec![screen.default_char(), screen.default_char()],
-            vec![
-                CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                CharOpts { data: "h".to_string(), ..CharOpts::default() },
-            ],
-            vec![
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                CharOpts { data: "h".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("s"), co!("h")],
+            vec![co!("o"), co!("h")],
         ];
         assert_eq!(tolist(&screen), expected);
 
@@ -2405,17 +2393,11 @@ mod test {
         );
 
         let expected = vec![
-            vec![
-                CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("b"), co!("o")],
             vec![screen.default_char(), screen.default_char()],
             vec![screen.default_char(), screen.default_char()],
             vec![screen.default_char(), screen.default_char()],
-            vec![
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                CharOpts { data: "h".to_string(), ..CharOpts::default() },
-            ],
+            vec![co!("o"), co!("h")],
         ];
         assert_eq!(tolist(&screen), expected);
 
@@ -2663,27 +2645,11 @@ mod test {
                     screen.default_char(),
                     screen.default_char()
                 ],
+                vec![co!("s"), co!("a"), co!("m"),],
                 vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
-                ],
-                vec![
-                    CharOpts {
-                        data: "i".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "s".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: " ".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
+                    co!("i", fg = "red"),
+                    co!("s", fg = "red"),
+                    co!(" ", fg = "red"),
                 ],
             ]
         );
@@ -2710,11 +2676,7 @@ mod test {
                     screen.default_char(),
                     screen.default_char()
                 ],
-                vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("s"), co!("a"), co!("m"),],
             ]
         );
     }
@@ -2736,43 +2698,19 @@ mod test {
         assert_eq!(
             tolist(&screen),
             vec![
-                vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("s"), co!("a"), co!("m"),],
                 vec![
                     screen.default_char(),
                     screen.default_char(),
                     screen.default_char()
                 ],
+                vec![co!("i"), co!("s"), co!(" "),],
                 vec![
-                    CharOpts { data: "i".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: " ".to_string(), ..CharOpts::default() },
+                    co!("f", fg = "red"),
+                    co!("o", fg = "red"),
+                    co!("o", fg = "red"),
                 ],
-                vec![
-                    CharOpts {
-                        data: "f".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "o".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "o".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                ],
-                vec![
-                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("b"), co!("a"), co!("z"),],
             ]
         );
     }
@@ -2843,27 +2781,11 @@ mod test {
             tolist(&screen),
             vec![
                 vec![
-                    CharOpts {
-                        data: "i".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "s".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: " ".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
+                    co!("i", fg = "red"),
+                    co!("s", fg = "red"),
+                    co!(" ", fg = "red"),
                 ],
-                vec![
-                    CharOpts { data: "f".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("f"), co!("o"), co!("o"),],
                 vec![
                     screen.default_char(),
                     screen.default_char(),
@@ -2890,55 +2812,23 @@ mod test {
         assert_eq!(
             tolist(&screen),
             vec![
+                vec![co!("s"), co!("a"), co!("m"),],
                 vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                    co!("f", fg = "red"),
+                    co!("o", fg = "red"),
+                    co!("o", fg = "red"),
                 ],
                 vec![
-                    CharOpts {
-                        data: "f".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "o".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "o".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                ],
-                vec![
-                    CharOpts {
-                        data: "b".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "a".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "r".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
+                    co!("b", fg = "red"),
+                    co!("a", fg = "red"),
+                    co!("r", fg = "red"),
                 ],
                 vec![
                     screen.default_char(),
                     screen.default_char(),
                     screen.default_char()
                 ],
-                vec![
-                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("b"), co!("a"), co!("z"),],
             ]
         );
     }
@@ -2960,27 +2850,11 @@ mod test {
         assert_eq!(
             tolist(&screen),
             vec![
+                vec![co!("s"), co!("a"), co!("m"),],
                 vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
-                ],
-                vec![
-                    CharOpts {
-                        data: "b".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "a".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "r".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
+                    co!("b", fg = "red"),
+                    co!("a", fg = "red"),
+                    co!("r", fg = "red"),
                 ],
                 vec![
                     screen.default_char(),
@@ -2992,11 +2866,7 @@ mod test {
                     screen.default_char(),
                     screen.default_char()
                 ],
-                vec![
-                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("b"), co!("a"), co!("z"),],
             ]
         );
     }
@@ -3018,11 +2888,7 @@ mod test {
         assert_eq!(
             tolist(&screen),
             vec![
-                vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("s"), co!("a"), co!("m"),],
                 vec![
                     screen.default_char(),
                     screen.default_char(),
@@ -3038,11 +2904,7 @@ mod test {
                     screen.default_char(),
                     screen.default_char()
                 ],
-                vec![
-                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("b"), co!("a"), co!("z"),],
             ]
         );
     }
@@ -3064,55 +2926,19 @@ mod test {
         assert_eq!(
             tolist(&screen),
             vec![
+                vec![co!("s"), co!("a"), co!("m"),],
+                vec![co!("i"), co!("s"), co!(" "),],
                 vec![
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                    co!("f", fg = "red"),
+                    co!("o", fg = "red"),
+                    co!("o", fg = "red"),
                 ],
                 vec![
-                    CharOpts { data: "i".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
-                    CharOpts { data: " ".to_string(), ..CharOpts::default() },
+                    co!("b", fg = "red"),
+                    co!("a", fg = "red"),
+                    co!("r", fg = "red"),
                 ],
-                vec![
-                    CharOpts {
-                        data: "f".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "o".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "o".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                ],
-                vec![
-                    CharOpts {
-                        data: "b".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "a".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "r".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                ],
-                vec![
-                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("b"), co!("a"), co!("z"),],
             ]
         );
     }
@@ -3130,27 +2956,11 @@ mod test {
             tolist(&screen),
             vec![
                 vec![
-                    CharOpts {
-                        data: "i".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: "s".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
-                    CharOpts {
-                        data: " ".to_string(),
-                        fg: "red".to_string(),
-                        ..CharOpts::default()
-                    },
+                    co!("i", fg = "red"),
+                    co!("s", fg = "red"),
+                    co!(" ", fg = "red"),
                 ],
-                vec![
-                    CharOpts { data: "f".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("f"), co!("o"), co!("o"),],
                 vec![
                     screen.default_char(),
                     screen.default_char(),
@@ -3166,11 +2976,7 @@ mod test {
         assert_eq!(
             tolist(&screen),
             vec![
-                vec![
-                    CharOpts { data: "f".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
-                ],
+                vec![co!("f"), co!("o"), co!("o"),],
                 vec![
                     screen.default_char(),
                     screen.default_char(),
@@ -3205,11 +3011,7 @@ mod test {
             vec![
                 screen.default_char(),
                 screen.default_char(),
-                CharOpts {
-                    data: "s".to_string(),
-                    fg: "red".to_string(),
-                    ..CharOpts::default()
-                },
+                co!("s", fg = "red"),
             ]
         );
     }
@@ -3223,18 +3025,11 @@ mod test {
         screen.cursor.x = 1;
         screen.insert_characters(Some(1));
 
-        assert_eq!(
-            tolist(&screen)[2],
-            vec![
-                CharOpts { data: "f".to_string(), ..CharOpts::default() },
-                screen.default_char(),
-                CharOpts { data: "o".to_string(), ..CharOpts::default() },
-            ]
-        );
+        assert_eq!(tolist(&screen)[2], cv![co!("f"), co!(default), co!("o")]);
     }
 
     #[test]
-    fn test_insert_characters_overflow() {
+    fn insert_characters_overflow() {
         let mut screen = Screen::new(3, 4);
         update(&mut screen, vec!["sam", "is ", "foo", "bar"], vec![0]);
 
@@ -3253,7 +3048,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_characters_default_count() {
+    fn insert_characters_default_count() {
         // Test with no count (should default to 1)
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
@@ -3263,19 +3058,7 @@ mod test {
 
         assert_eq!(
             tolist(&screen)[0],
-            vec![
-                screen.default_char(),
-                CharOpts {
-                    data: "s".to_string(),
-                    fg: "red".to_string(),
-                    ..CharOpts::default()
-                },
-                CharOpts {
-                    data: "a".to_string(),
-                    fg: "red".to_string(),
-                    ..CharOpts::default()
-                },
-            ]
+            cv![co!(default), co!("s", fg = "red"), co!("a", fg = "red"),]
         );
 
         // Test with explicit count of 1
@@ -3287,19 +3070,7 @@ mod test {
 
         assert_eq!(
             tolist(&screen)[0],
-            vec![
-                screen.default_char(),
-                CharOpts {
-                    data: "s".to_string(),
-                    fg: "red".to_string(),
-                    ..CharOpts::default()
-                },
-                CharOpts {
-                    data: "a".to_string(),
-                    fg: "red".to_string(),
-                    ..CharOpts::default()
-                },
-            ]
+            cv![co!(default), co!("s", fg = "red"), co!("a", fg = "red")]
         );
     }
 }

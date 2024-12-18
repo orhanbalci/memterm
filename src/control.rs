@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 
 use lazy_static::lazy_static;
-use regex::Regex;
 
 use crate::ascii;
 
@@ -79,18 +78,6 @@ lazy_static! {
             special.insert(key);
         }
         special
-    };
-
-    // Text pattern regex
-    pub static ref TEXT_PATTERN: Regex = {
-        let pattern = format!(
-            "[^{}]+",
-            SPECIAL.iter()
-                .map(|s| regex::escape(s))
-                .collect::<Vec<_>>()
-                .join("")
-        );
-        Regex::new(&pattern).unwrap()
     };
 
 }

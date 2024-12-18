@@ -27,12 +27,13 @@ where
     pub fn new(listener: Arc<Mutex<T>>) -> Self {
         let parser_state = Arc::new(Mutex::new(ParserState { use_utf8: true }));
         let parser_state_cloned = parser_state.clone();
-        return Self {
+        let mut a = Self {
             listener: listener.clone(),
             taking_plain_text: true,
             parser_fsm: Gn::<String>::new_scoped(move |mut co| {
                 loop {
                     let mut char = co.yield_(Some(true)).unwrap_or_default();
+                    println!("parser working");
                     if ESC == char {
                         char = co.yield_(None).unwrap_or_default();
                         if char == "[" {
@@ -62,6 +63,7 @@ where
                         }
                     }
                     if BASIC.iter().any(|cf| *cf == char) {
+                        println!("basic dispatch");
                         if char == SI || char == SO {
                             continue;
                         } else {
@@ -131,35 +133,27 @@ where
             }),
             _parser_state: parser_state,
         };
+
+        a.parser_fsm.send("".to_owned());
+        a
     }
 
-    // pub fn feed(&mut self, input: String) {
-    //     input.chars().for_each(|c| {
-    //         self.parser_fsm.send(c.to_string());
-    //     });
-    // }
-
     pub fn feed(&mut self, data: String) {
-        let length = data.len();
-        let mut offset = 0;
+        for c in data.chars() {
+            let char_str = c.to_string();
 
-        while offset < length {
+            // If we're in plain text mode and this is a special character
+            if self.taking_plain_text && SPECIAL.contains(&char_str.as_str()) {
+                // dbg!(char_str.clone());
+                self.taking_plain_text = false;
+            }
+
             if self.taking_plain_text {
-                if let Some(mat) = TEXT_PATTERN.find_at(&data, offset) {
-                    let (start, end) = (mat.start(), mat.end());
-                    let text = &data[start..end];
-                    text.chars().for_each(|c| {
-                        self.listener.lock().unwrap().draw(&c.to_string());
-                    });
-                    offset = end;
-                } else {
-                    self.taking_plain_text = false;
-                }
+                // Feed plain text directly to listener
+                self.listener.lock().unwrap().draw(&char_str);
             } else {
-                let next_char = &data[offset..offset + 1];
-                self.taking_plain_text =
-                    self.parser_fsm.send(next_char.to_string()).unwrap_or(false);
-                offset += 1;
+                // Feed to parser FSM and update taking_plain_text state
+                self.taking_plain_text = self.parser_fsm.send(char_str).unwrap_or(false);
             }
         }
     }

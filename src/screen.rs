@@ -192,14 +192,12 @@ impl Screen {
                     continue;
                 }
                 let char = line.entry(x).or_insert(default_char.clone()).data.clone();
-                dbg!(char.clone());
                 is_wide_char = char
                     .chars()
                     .next()
                     .expect("can not read char")
                     .width()
                     .is_some_and(|s| s == 2);
-                dbg!(is_wide_char);
                 result.push_str(&char);
             }
 
@@ -843,7 +841,6 @@ impl ParserListener for Screen {
         for y in interval.clone() {
             let line = &mut self.buffer.get_mut(&y).expect("can not retrieve line");
             for x in 0..line.len() {
-                dbg!(self.cursor.attr.clone());
                 line.insert(x as u32, self.cursor.attr.clone());
             }
         }
@@ -1057,7 +1054,6 @@ impl ParserListener for Screen {
         // mode_list = list(modes)
         // Private mode codes are shifted, to be distinguished from non
         // private ones.
-        dbg!("set ode called");
         let mut mode_list = Vec::from(modes);
         if private {
             mode_list = modes.iter().map(|m| m << 5).collect::<Vec<_>>();
@@ -2027,5 +2023,31 @@ mod test {
         }
 
         assert_eq!(screen.display(), vec!["α ± ε".to_string()]);
+    }
+
+    #[test]
+    fn test_display_wcwidth() {
+        let mut screen = Screen::new(10, 1);
+        screen.draw("コンニチハ");
+
+        assert_eq!(screen.display(), vec!["コンニチハ".to_string()]);
+    }
+
+    #[test]
+    fn test_draw_with_carriage_return() {
+        let line = "ipcs -s | grep nobody |awk '{print$2}'|xargs -n1 ipcrm sem ;ps aux|grep -P 'httpd|fcgi'|grep -v grep|awk '{print$2 \x0D}'|xargs kill -9;/etc/init.d/httpd startssl";
+
+        let screen = Arc::new(Mutex::new(Screen::new(50, 3)));
+        let mut parser = Parser::new(screen.clone());
+        parser.feed(line.to_string());
+
+        assert_eq!(
+            screen.lock().unwrap().display(),
+            vec![
+                "ipcs -s | grep nobody |awk '{print$2}'|xargs -n1 i".to_string(),
+                "pcrm sem ;ps aux|grep -P 'httpd|fcgi'|grep -v grep".to_string(),
+                "}'|xargs kill -9;/etc/init.d/httpd startssl       ".to_string(),
+            ]
+        );
     }
 }

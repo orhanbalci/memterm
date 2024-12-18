@@ -809,8 +809,11 @@ impl ParserListener for Screen {
         if self.cursor.x == self.columns {
             self.cursor.x -= 1
         }
-
-        self.cursor.x -= count.unwrap_or(1);
+        if self.cursor.x >= count.unwrap_or(1) {
+            self.cursor.x -= count.unwrap_or(1);
+        } else {
+            self.cursor.x = 0;
+        }
         self.ensure_hbounds();
     }
 
@@ -2455,7 +2458,7 @@ mod test {
     }
 
     #[test]
-    fn test_linefeed_margins() {
+    fn linefeed_margins() {
         // See issue #63 on GitHub.
         let mut screen = Screen::new(80, 24);
         screen.set_margins(Some(3), Some(27));
@@ -2466,7 +2469,7 @@ mod test {
     }
 
     #[test]
-    fn test_tabstops() {
+    fn tabstops() {
         let mut screen = Screen::new(10, 10);
 
         // Check initial tabstops
@@ -2499,7 +2502,7 @@ mod test {
     }
 
     #[test]
-    fn test_clear_tabstops() {
+    fn clear_tabstops() {
         let mut screen = Screen::new(10, 10);
         screen.clear_tab_stop(Some(3));
 
@@ -2536,5 +2539,767 @@ mod test {
 
         // Check all tabstops are cleared
         assert!(screen.tabstops.is_empty());
+    }
+
+    #[test]
+    fn backspace() {
+        let mut screen = Screen::new(2, 2);
+        assert_eq!(screen.cursor.x, 0);
+
+        // Test backspace at left edge
+        screen.backspace();
+        assert_eq!(screen.cursor.x, 0);
+
+        // Test backspace from position 1
+        screen.cursor.x = 1;
+        screen.backspace();
+        assert_eq!(screen.cursor.x, 0);
+    }
+
+    #[test]
+    fn test_save_cursor() {
+        // a) Test cursor position
+        let mut screen = Screen::new(10, 10);
+        screen.save_cursor();
+        screen.cursor.x = 3;
+        screen.cursor.y = 5;
+        screen.save_cursor();
+        screen.cursor.x = 4;
+        screen.cursor.y = 4;
+
+        // Restore and check last saved position
+        screen.restore_cursor();
+        assert_eq!(screen.cursor.x, 3);
+        assert_eq!(screen.cursor.y, 5);
+
+        // Restore and check initial position
+        screen.restore_cursor();
+        assert_eq!(screen.cursor.x, 0);
+        assert_eq!(screen.cursor.y, 0);
+
+        // b) Test modes
+        let mut screen = Screen::new(10, 10);
+        screen.set_mode(&[DECAWM, DECOM], false);
+        screen.save_cursor();
+
+        screen.reset_mode(&[DECAWM], false);
+
+        screen.restore_cursor();
+        assert!(screen.mode.contains(&DECAWM));
+        assert!(screen.mode.contains(&DECOM));
+
+        // c) Test attributes
+        let mut screen = Screen::new(10, 10);
+        screen.select_graphic_rendition(&[4]); // underscore
+        screen.save_cursor();
+        screen.select_graphic_rendition(&[24]); // no underscore
+
+        assert_eq!(screen.cursor.attr, screen.default_char());
+
+        screen.restore_cursor();
+
+        assert_ne!(screen.cursor.attr, screen.default_char());
+        assert_eq!(
+            screen.cursor.attr,
+            CharOpts { underscore: true, ..CharOpts::default() }
+        );
+    }
+
+    #[test]
+    fn test_restore_cursor_with_none_saved() {
+        let mut screen = Screen::new(10, 10);
+        screen.set_mode(&[DECOM], false);
+        screen.cursor.x = 5;
+        screen.cursor.y = 5;
+
+        screen.restore_cursor();
+
+        // Check cursor position resets to (0,0)
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        // Check DECOM mode is cleared
+        assert!(!screen.mode.contains(&DECOM));
+    }
+
+    #[test]
+    fn test_restore_cursor_out_of_bounds() {
+        let mut screen = Screen::new(10, 10);
+
+        // a) Test with origin mode off
+        screen.cursor_position(Some(5), Some(5));
+        screen.save_cursor();
+        screen.resize(Some(3), Some(3));
+        screen.reset();
+        screen.restore_cursor();
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 2));
+
+        // b) Test with origin mode on
+        screen.resize(Some(10), Some(10));
+        screen.cursor_position(Some(8), Some(8));
+        screen.save_cursor();
+        screen.resize(Some(5), Some(5));
+        screen.reset();
+        screen.set_mode(&[DECOM], false);
+        screen.set_margins(Some(2), Some(3));
+        screen.restore_cursor();
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 4));
+    }
+
+    #[test]
+    fn test_insert_lines_basic() {
+        // Basic insert without margins
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
+        screen.insert_lines(None);
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["   ", "sam", "is "]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    CharOpts {
+                        data: "i".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "s".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: " ".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_multiple_lines() {
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
+        screen.insert_lines(Some(2));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["   ", "   ", "sam"]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_lines_with_margins() {
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(1), Some(4));
+        screen.cursor.y = 1;
+        screen.insert_lines(Some(1));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "   ", "is ", "foo", "baz"]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    CharOpts { data: "i".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: " ".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    CharOpts {
+                        data: "f".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "o".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "o".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_lines_limited_margins() {
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(1), Some(3));
+        screen.cursor.y = 1;
+        screen.insert_lines(Some(1));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "   ", "is ", "bar", "baz"]);
+
+        screen.insert_lines(Some(2));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "   ", "   ", "bar", "baz"]);
+    }
+
+    #[test]
+    fn test_insert_lines_overflow() {
+        // Test inserting more lines than available within margins
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(2), Some(4));
+        screen.cursor.y = 1;
+        screen.insert_lines(Some(20));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "   ", "   ", "   ", "baz"]);
+    }
+
+    #[test]
+    fn test_insert_lines_outside_margins() {
+        // Test inserting when cursor is outside margins
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(2), Some(4));
+        screen.insert_lines(Some(5));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["sam", "is ", "foo", "bar", "baz"]);
+    }
+
+    #[test]
+    fn test_delete_lines_basic() {
+        // Test basic line deletion without margins
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
+        screen.delete_lines(None);
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["is ", "foo", "   "]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts {
+                        data: "i".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "s".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: " ".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    CharOpts { data: "f".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_delete_lines_with_margins() {
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(1), Some(4));
+        screen.cursor.y = 1;
+        screen.delete_lines(Some(1));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "foo", "bar", "   ", "baz"]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    CharOpts {
+                        data: "f".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "o".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "o".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    CharOpts {
+                        data: "b".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "a".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "r".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_delete_multiple_lines_with_margins() {
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(1), Some(4));
+        screen.cursor.y = 1;
+        screen.delete_lines(Some(2));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "bar", "   ", "   ", "baz"]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    CharOpts {
+                        data: "b".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "a".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "r".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_delete_lines_overflow() {
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(1), Some(4));
+        screen.cursor.y = 1;
+        screen.delete_lines(Some(5));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+        assert_eq!(screen.display(), vec!["sam", "   ", "   ", "   ", "baz"]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_delete_lines_outside_margins() {
+        let mut screen = Screen::new(3, 5);
+        update(
+            &mut screen,
+            vec!["sam", "is ", "foo", "bar", "baz"],
+            vec![2, 3],
+        );
+        screen.set_margins(Some(2), Some(4));
+        screen.cursor.y = 0;
+        screen.delete_lines(Some(5));
+
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["sam", "is ", "foo", "bar", "baz"]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "m".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    CharOpts { data: "i".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "s".to_string(), ..CharOpts::default() },
+                    CharOpts { data: " ".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    CharOpts {
+                        data: "f".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "o".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "o".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    CharOpts {
+                        data: "b".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "a".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "r".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "a".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "z".to_string(), ..CharOpts::default() },
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_delete_lines_default_count() {
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
+
+        // First deletion
+        screen.delete_lines(None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["is ", "foo", "   "]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts {
+                        data: "i".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: "s".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                    CharOpts {
+                        data: " ".to_string(),
+                        fg: "red".to_string(),
+                        ..CharOpts::default()
+                    },
+                ],
+                vec![
+                    CharOpts { data: "f".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+            ]
+        );
+
+        // Second deletion
+        screen.delete_lines(None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["foo", "   ", "   "]);
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                vec![
+                    CharOpts { data: "f".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                    CharOpts { data: "o".to_string(), ..CharOpts::default() },
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+                vec![
+                    screen.default_char(),
+                    screen.default_char(),
+                    screen.default_char()
+                ],
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_characters_normal() {
+        let mut screen = Screen::new(3, 4);
+        update(&mut screen, vec!["sam", "is ", "foo", "bar"], vec![0]);
+
+        // Save cursor position
+        let cursor_x = screen.cursor.x;
+        let cursor_y = screen.cursor.y;
+
+        screen.insert_characters(Some(2));
+
+        // Check cursor hasn't moved
+        assert_eq!((screen.cursor.y, screen.cursor.x), (cursor_y, cursor_x));
+
+        // Check first line
+        assert_eq!(
+            tolist(&screen)[0],
+            vec![
+                screen.default_char(),
+                screen.default_char(),
+                CharOpts {
+                    data: "s".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_characters_middle() {
+        let mut screen = Screen::new(3, 4);
+        update(&mut screen, vec!["sam", "is ", "foo", "bar"], vec![0]);
+
+        screen.cursor.y = 2;
+        screen.cursor.x = 1;
+        screen.insert_characters(Some(1));
+
+        assert_eq!(
+            tolist(&screen)[2],
+            vec![
+                CharOpts { data: "f".to_string(), ..CharOpts::default() },
+                screen.default_char(),
+                CharOpts { data: "o".to_string(), ..CharOpts::default() },
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_characters_overflow() {
+        let mut screen = Screen::new(3, 4);
+        update(&mut screen, vec!["sam", "is ", "foo", "bar"], vec![0]);
+
+        screen.cursor.y = 3;
+        screen.cursor.x = 1;
+        screen.insert_characters(Some(10));
+
+        assert_eq!(
+            tolist(&screen)[3],
+            vec![
+                CharOpts { data: "b".to_string(), ..CharOpts::default() },
+                screen.default_char(),
+                screen.default_char(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_insert_characters_default_count() {
+        // Test with no count (should default to 1)
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
+
+        screen.cursor_position(None, None);
+        screen.insert_characters(None);
+
+        assert_eq!(
+            tolist(&screen)[0],
+            vec![
+                screen.default_char(),
+                CharOpts {
+                    data: "s".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+                CharOpts {
+                    data: "a".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+            ]
+        );
+
+        // Test with explicit count of 1
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
+
+        screen.cursor_position(None, None);
+        screen.insert_characters(Some(1));
+
+        assert_eq!(
+            tolist(&screen)[0],
+            vec![
+                screen.default_char(),
+                CharOpts {
+                    data: "s".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+                CharOpts {
+                    data: "a".to_string(),
+                    fg: "red".to_string(),
+                    ..CharOpts::default()
+                },
+            ]
+        );
     }
 }

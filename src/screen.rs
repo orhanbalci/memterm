@@ -96,7 +96,7 @@ pub struct Cursor {
 }
 
 /// A container for screen's scroll margins
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Margins {
     pub top: u32,
     pub bottom: u32,
@@ -1301,7 +1301,7 @@ mod test {
     use crate::modes::{DECAWM, DECCOLM, DECOM, DECSCNM, DECTCEM, IRM, LNM};
     use crate::parser::Parser;
     use crate::parser_listener::ParserListener;
-    use crate::screen::Charset;
+    use crate::screen::{Charset, Margins};
 
     /// Macro to create CharOpts with optional color
     macro_rules! co {
@@ -3236,5 +3236,526 @@ mod test {
                 co!("5", fg = "red")
             ]
         );
+    }
+
+    #[test]
+    fn test_erase_in_line() {
+        // Initial setup
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![0],
+        );
+        screen.cursor_position(Some(1), Some(3));
+
+        // a) erase from cursor to the end of line
+        screen.erase_in_line(Some(0), None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 2));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "sa   ".to_string(),
+                "s foo".to_string(),
+                "but a".to_string(),
+                "re yo".to_string(),
+                "u?   ".to_string(),
+            ]
+        );
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!("s", fg = "red"),
+                co!("a", fg = "red"),
+                co!(default),
+                co!(default),
+                co!(default)
+            ]
+        );
+
+        // b) erase from the beginning of the line to the cursor
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![0],
+        );
+        screen.cursor_position(Some(1), Some(3));
+        screen.erase_in_line(Some(1), None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 2));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "    i".to_string(),
+                "s foo".to_string(),
+                "but a".to_string(),
+                "re yo".to_string(),
+                "u?   ".to_string(),
+            ]
+        );
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!(default),
+                co!(default),
+                co!(default),
+                co!(" ", fg = "red"),
+                co!("i", fg = "red")
+            ]
+        );
+
+        // c) erase the entire line
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![0],
+        );
+        screen.cursor_position(Some(1), Some(3));
+        screen.erase_in_line(Some(2), None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 2));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "     ".to_string(),
+                "s foo".to_string(),
+                "but a".to_string(),
+                "re yo".to_string(),
+                "u?   ".to_string(),
+            ]
+        );
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!(default),
+                co!(default),
+                co!(default),
+                co!(default),
+                co!(default)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_erase_in_display() {
+        // Initial setup
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![2, 3],
+        );
+        screen.cursor_position(Some(3), Some(3));
+
+        // a) erase from cursor to the end of display
+        screen.erase_in_display(Some(0), None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 2));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "sam i".to_string(),
+                "s foo".to_string(),
+                "bu   ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+            ]
+        );
+        assert_eq!(
+            tolist(&screen)[2..],
+            vec![
+                cv![
+                    co!("b", fg = "red"),
+                    co!("u", fg = "red"),
+                    co!(default),
+                    co!(default),
+                    co!(default)
+                ],
+                cv![
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default)
+                ],
+                cv![
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default)
+                ]
+            ]
+        );
+
+        // b) erase from beginning of display to cursor
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![2, 3],
+        );
+        screen.cursor_position(Some(3), Some(3));
+        screen.erase_in_display(Some(1), None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 2));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "     ".to_string(),
+                "     ".to_string(),
+                "    a".to_string(),
+                "re yo".to_string(),
+                "u?   ".to_string(),
+            ]
+        );
+        assert_eq!(
+            tolist(&screen)[..3],
+            vec![
+                cv![
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default)
+                ],
+                cv![
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(default)
+                ],
+                cv![
+                    co!(default),
+                    co!(default),
+                    co!(default),
+                    co!(" ", fg = "red"),
+                    co!("a", fg = "red")
+                ],
+            ]
+        );
+
+        // c) erase whole display
+        screen.erase_in_display(Some(2), None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 2));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+            ]
+        );
+        let empty_line = cv![
+            co!(default),
+            co!(default),
+            co!(default),
+            co!(default),
+            co!(default)
+        ];
+        assert_eq!(
+            tolist(&screen),
+            vec![
+                empty_line.clone(),
+                empty_line.clone(),
+                empty_line.clone(),
+                empty_line.clone(),
+                empty_line.clone()
+            ]
+        );
+
+        // d) erase with private mode
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![2, 3],
+        );
+        screen.erase_in_display(Some(3), Some(true));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+            ]
+        );
+
+        // e) erase with mode 3
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![2, 3],
+        );
+        screen.erase_in_display(Some(3), None);
+        assert_eq!(
+            screen.display(),
+            vec![
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+            ]
+        );
+
+        // f) erase with mode 3 and private mode
+        let mut screen = Screen::new(5, 5);
+        update(
+            &mut screen,
+            vec!["sam i", "s foo", "but a", "re yo", "u?   "],
+            vec![2, 3],
+        );
+        screen.erase_in_display(Some(3), Some(true));
+        assert_eq!(
+            screen.display(),
+            vec![
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_cursor_up() {
+        let mut screen = Screen::new(10, 10);
+
+        // Moving the cursor up at the top doesn't do anything
+        screen.cursor_up(Some(1));
+        assert_eq!(screen.cursor.y, 0);
+
+        screen.cursor.y = 1;
+
+        // Moving the cursor past the top moves it to the top
+        screen.cursor_up(Some(10));
+        assert_eq!(screen.cursor.y, 0);
+
+        screen.cursor.y = 5;
+        // Can move the cursor more than one up
+        screen.cursor_up(Some(3));
+        assert_eq!(screen.cursor.y, 2);
+    }
+
+    #[test]
+    fn test_cursor_down() {
+        let mut screen = Screen::new(10, 10);
+
+        // Moving the cursor down at the bottom doesn't do anything
+        screen.cursor.y = 9;
+        screen.cursor_down(Some(1));
+        assert_eq!(screen.cursor.y, 9);
+
+        screen.cursor.y = 8;
+
+        // Moving the cursor past the bottom moves it to the bottom
+        screen.cursor_down(Some(10));
+        assert_eq!(screen.cursor.y, 9);
+
+        screen.cursor.y = 5;
+        // Can move the cursor more than one down
+        screen.cursor_down(Some(3));
+        assert_eq!(screen.cursor.y, 8);
+    }
+
+    #[test]
+    fn test_cursor_back() {
+        let mut screen = Screen::new(10, 10);
+
+        // Moving the cursor left at the margin doesn't do anything
+        screen.cursor.x = 0;
+        screen.cursor_back(Some(1));
+        assert_eq!(screen.cursor.x, 0);
+
+        screen.cursor.x = 3;
+
+        // Moving the cursor past the left margin moves it to the left margin
+        screen.cursor_back(Some(10));
+        assert_eq!(screen.cursor.x, 0);
+
+        screen.cursor.x = 5;
+        // Can move the cursor more than one back
+        screen.cursor_back(Some(3));
+        assert_eq!(screen.cursor.x, 2);
+    }
+
+    #[test]
+    fn test_cursor_back_last_column() {
+        let mut screen = Screen::new(13, 1);
+        screen.draw("Hello, world!");
+        assert_eq!(screen.cursor.x, screen.columns);
+
+        screen.cursor_back(Some(5));
+        assert_eq!(screen.cursor.x, (screen.columns - 1) - 5);
+    }
+
+    #[test]
+    fn test_cursor_forward() {
+        let mut screen = Screen::new(10, 10);
+
+        // Moving the cursor right at the margin doesn't do anything
+        screen.cursor.x = 9;
+        screen.cursor_forward(Some(1));
+        assert_eq!(screen.cursor.x, 9);
+
+        // Moving the cursor past the right margin moves it to the right margin
+        screen.cursor.x = 8;
+        screen.cursor_forward(Some(10));
+        assert_eq!(screen.cursor.x, 9);
+
+        // Can move the cursor more than one forward
+        screen.cursor.x = 5;
+        screen.cursor_forward(Some(3));
+        assert_eq!(screen.cursor.x, 8);
+    }
+
+    #[test]
+    fn test_cursor_position() {
+        let mut screen = Screen::new(10, 10);
+
+        // a) testing that we expect 1-indexed values
+        screen.cursor_position(Some(5), Some(10));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (4, 9));
+
+        // b) but (0, 0) is also accepted and should be the same as (1, 1)
+        screen.cursor_position(Some(0), Some(10));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 9));
+
+        // c) moving outside the margins constrains to within the screen bounds
+        screen.cursor_position(Some(100), Some(5));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (9, 4));
+
+        screen.cursor_position(Some(5), Some(100));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (4, 9));
+
+        // d) DECOM on
+        screen.set_margins(Some(5), Some(9));
+        screen.set_mode(&[DECOM], false);
+        screen.cursor_position(None, None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (4, 0));
+
+        screen.cursor_position(Some(2), Some(0));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (5, 0));
+
+        // Note that cursor position doesn't change
+        screen.cursor_position(Some(10), Some(0));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (5, 0));
+    }
+
+    #[test]
+    fn test_unicode() {
+        let screen = Arc::new(Mutex::new(Screen::new(4, 2)));
+        let mut parser = Parser::new(screen.clone());
+
+        parser.feed("тест".to_string());
+
+        assert_eq!(
+            screen.lock().unwrap().display(),
+            vec!["тест".to_string(), "    ".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_alignment_display() {
+        let mut screen = Screen::new(5, 5);
+        screen.set_mode(&[LNM], false);
+
+        // Draw initial content
+        screen.draw("a");
+        screen.linefeed();
+        screen.linefeed();
+        screen.draw("b");
+
+        assert_eq!(
+            screen.display(),
+            vec![
+                "a    ".to_string(),
+                "     ".to_string(),
+                "b    ".to_string(),
+                "     ".to_string(),
+                "     ".to_string(),
+            ]
+        );
+
+        // Test alignment display
+        screen.alignment_display();
+
+        assert_eq!(
+            screen.display(),
+            vec![
+                "EEEEE".to_string(),
+                "EEEEE".to_string(),
+                "EEEEE".to_string(),
+                "EEEEE".to_string(),
+                "EEEEE".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_set_margins() {
+        let mut screen = Screen::new(10, 10);
+
+        assert!(screen.margins.is_none());
+
+        // a) ok-case
+        screen.set_margins(Some(1), Some(5));
+        assert_eq!(screen.margins, Some(Margins { top: 0, bottom: 4 }));
+
+        // b) one of the margins is out of bounds
+        screen.set_margins(Some(100), Some(10));
+        assert_ne!(screen.margins, Some(Margins { top: 99, bottom: 9 }));
+        assert_eq!(screen.margins, Some(Margins { top: 0, bottom: 4 }));
+
+        // c) no margins provided -- reset to full screen
+        screen.set_margins(None, None);
+        assert!(screen.margins.is_none());
+    }
+
+    #[test]
+    fn test_set_margins_zero() {
+        // See https://github.com/selectel/pyte/issues/61
+        let mut screen = Screen::new(80, 24);
+
+        screen.set_margins(Some(1), Some(5));
+        assert_eq!(screen.margins, Some(Margins { top: 0, bottom: 4 }));
+
+        screen.set_margins(Some(0), None);
+        assert!(screen.margins.is_none());
+    }
+
+    #[test]
+    fn test_hide_cursor() {
+        let mut screen = Screen::new(10, 10);
+
+        // DECTCEM is set by default
+        assert!(screen.mode.contains(&DECTCEM));
+        assert!(!screen.cursor.hidden);
+
+        // a) resetting DECTCEM hides the cursor
+        screen.reset_mode(&[DECTCEM], false);
+        assert!(screen.cursor.hidden);
+
+        // b) setting DECTCEM shows the cursor again
+        screen.set_mode(&[DECTCEM], false);
+        assert!(!screen.cursor.hidden);
+    }
+
+    #[test]
+    fn test_screen_set_icon_name_title() {
+        let mut screen = Screen::new(10, 1);
+
+        let text = "±";
+        screen.set_icon_name(text);
+        assert_eq!(screen.icon_name, text);
+
+        screen.set_title(text);
+        assert_eq!(screen.title, text);
     }
 }

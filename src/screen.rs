@@ -425,8 +425,8 @@ impl ParserListener for Screen {
         // From ``man terminfo`` -- "... hardware tabs are initially
         // set every `n` spaces when the terminal is powered up. Since
         // we aim to support VT102 / VT220 and linux -- we use n = 8.
-        self.dirty.clear();
-        self.dirty.extend((8..self.columns).step_by(8));
+        self.tabstops.clear();
+        self.tabstops.extend((8..self.columns).step_by(8));
 
         self.cursor = Cursor {
             x: 0,
@@ -1289,7 +1289,7 @@ impl ParserListener for Screen {
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
     use std::sync::{Arc, Mutex};
 
     use super::{CharOpts, Screen};
@@ -2093,7 +2093,7 @@ mod test {
     }
 
     #[test]
-    fn test_index() {
+    fn index() {
         // a) Test basic index behavior
         let mut screen = Screen::new(2, 2);
         update(&mut screen, vec!["wo", "ot"], vec![1]);
@@ -2270,7 +2270,7 @@ mod test {
     }
 
     #[test]
-    fn test_reverse_index() {
+    fn reverse_index() {
         // a) Test basic reverse index
         let mut screen = Screen::new(2, 2);
         update(&mut screen, vec!["wo", "ot"], vec![0]);
@@ -2430,5 +2430,111 @@ mod test {
             ]
         );
         assert_eq!(tolist(&screen), expected);
+    }
+
+    #[test]
+    fn linefeed() {
+        // Setup screen
+        let mut screen = Screen::new(2, 2);
+        update(&mut screen, vec!["bo", "sh"], vec![]);
+        screen.set_mode(&[LNM], false);
+
+        // a) Test with LNM on
+        assert!(screen.mode.contains(&LNM));
+        screen.cursor.x = 1;
+        screen.cursor.y = 0;
+        screen.linefeed();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+
+        // b) Test with LNM off
+        screen.reset_mode(&[LNM], false);
+        screen.cursor.x = 1;
+        screen.cursor.y = 0;
+        screen.linefeed();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 1));
+    }
+
+    #[test]
+    fn test_linefeed_margins() {
+        // See issue #63 on GitHub.
+        let mut screen = Screen::new(80, 24);
+        screen.set_margins(Some(3), Some(27));
+        screen.cursor_position(None, None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        screen.linefeed();
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 0));
+    }
+
+    #[test]
+    fn test_tabstops() {
+        let mut screen = Screen::new(10, 10);
+
+        // Check initial tabstops
+        assert_eq!(screen.tabstops, {
+            let mut stops = HashSet::new();
+            stops.insert(8);
+            stops
+        });
+
+        // Clear tabstops
+        screen.clear_tab_stop(Some(3));
+        assert!(screen.tabstops.is_empty());
+
+        // Set new tabstops
+        screen.cursor.x = 1;
+        screen.set_tab_stop();
+        screen.cursor.x = 8;
+        screen.set_tab_stop();
+
+        // Test tab behavior
+        screen.cursor.x = 0;
+        screen.tab();
+        assert_eq!(screen.cursor.x, 1);
+        screen.tab();
+        assert_eq!(screen.cursor.x, 8);
+        screen.tab();
+        assert_eq!(screen.cursor.x, 9);
+        screen.tab();
+        assert_eq!(screen.cursor.x, 9);
+    }
+
+    #[test]
+    fn test_clear_tabstops() {
+        let mut screen = Screen::new(10, 10);
+        screen.clear_tab_stop(Some(3));
+
+        // a) Clear a tabstop at current cursor location
+        screen.cursor.x = 1;
+        screen.set_tab_stop();
+        screen.cursor.x = 5;
+        screen.set_tab_stop();
+        screen.clear_tab_stop(None); // Clear at current cursor position (5)
+
+        // Check only tabstop at 1 remains
+        assert_eq!(screen.tabstops, {
+            let mut stops = HashSet::new();
+            stops.insert(1);
+            stops
+        });
+
+        // Set and clear using explicit position
+        screen.set_tab_stop();
+        screen.clear_tab_stop(Some(0));
+
+        // Check tabstop at 1 still remains
+        assert_eq!(screen.tabstops, {
+            let mut stops = HashSet::new();
+            stops.insert(1);
+            stops
+        });
+
+        // b) Clear all tabstops
+        screen.set_tab_stop();
+        screen.cursor.x = 9;
+        screen.set_tab_stop();
+        screen.clear_tab_stop(Some(3)); // 3 means clear all
+
+        // Check all tabstops are cleared
+        assert!(screen.tabstops.is_empty());
     }
 }

@@ -165,7 +165,8 @@ where
 mod test {
     use std::sync::{Arc, Mutex};
 
-    use super::{Parser, ESC, RIS};
+    use super::{Parser, DECRC, DECSC, ESC, HTS, IND, NEL, RI, RIS};
+    use crate::counter::Counter;
     use crate::debug_screen::DebugScreen;
 
     #[test]
@@ -175,5 +176,53 @@ mod test {
         parser.feed(String::default());
         parser.feed(ESC.to_owned());
         parser.feed(RIS.to_owned());
+    }
+
+    #[test]
+    fn basic_sequences() {
+        // Map of escape sequences to their handler names
+        let escape_map = vec![
+            (RIS, "reset"),
+            (IND, "index"),
+            (NEL, "linefeed"),
+            (RI, "reverse_index"),
+            (HTS, "set_tab_stop"),
+            (DECSC, "save_cursor"),
+            (DECRC, "restore_cursor"),
+        ];
+
+        for (cmd, event) in escape_map {
+            let counter = Arc::new(Mutex::new(Counter::new()));
+            let mut parser = Parser::new(counter.clone());
+
+            // First feed ESC
+            parser.feed(ESC.to_string());
+            assert_eq!(
+                counter.lock().unwrap().get_count(event),
+                0,
+                "Handler {} was called before command",
+                event
+            );
+
+            // Then feed the command
+            parser.feed(cmd.to_string());
+            assert_eq!(
+                counter.lock().unwrap().get_count(event),
+                1,
+                "Handler {} was not called exactly once",
+                event
+            );
+
+            // Verify no other handlers were called
+            for (name, count) in counter.lock().unwrap().counts.iter() {
+                if name != &event {
+                    assert_eq!(
+                        *count, 0,
+                        "Unexpected handler {} was called {} times",
+                        name, count
+                    );
+                }
+            }
+        }
     }
 }

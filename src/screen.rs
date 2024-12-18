@@ -969,7 +969,8 @@ impl ParserListener for Screen {
     /// - `count`: Number of characters to delete.
     fn delete_characters(&mut self, count: Option<u32>) {
         self.dirty.insert(self.cursor.y);
-        let count = count.unwrap_or(1);
+        let count = count.map(|a| if a > 0 { a } else { 1 }).unwrap_or(1);
+
         let default_char = self.default_char();
         if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
             for x in self.cursor.x..self.columns {
@@ -1000,7 +1001,7 @@ impl ParserListener for Screen {
     /// could erase a character is by typing over it.
     fn erase_characters(&mut self, count: Option<u32>) {
         self.dirty.insert(self.cursor.y);
-        let count = count.unwrap_or(1);
+        let count = count.map(|a| if a > 0 { a } else { 1 }).unwrap_or(1);
 
         if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
             for x in self.cursor.x..std::cmp::min(self.cursor.x + count, self.columns) {
@@ -3071,6 +3072,169 @@ mod test {
         assert_eq!(
             tolist(&screen)[0],
             cv![co!(default), co!("s", fg = "red"), co!("a", fg = "red")]
+        );
+    }
+
+    #[test]
+    fn test_delete_characters() {
+        // Basic case
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
+        screen.delete_characters(Some(2));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["m  ", "is ", "foo"]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![co!("m", fg = "red"), co!(default), co!(default)]
+        );
+
+        // Delete at position (2,2)
+        screen.cursor.y = 2;
+        screen.cursor.x = 2;
+        screen.delete_characters(None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 2));
+        assert_eq!(screen.display(), vec!["m  ", "is ", "fo "]);
+
+        // Delete at position (1,1)
+        screen.cursor.y = 1;
+        screen.cursor.x = 1;
+        screen.delete_characters(Some(0));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 1));
+        assert_eq!(screen.display(), vec!["m  ", "i  ", "fo "]);
+
+        // Extreme cases
+        // 1. Delete from middle of line
+        let mut screen = Screen::new(5, 1);
+        update(&mut screen, vec!["12345"], vec![0]);
+        screen.cursor.x = 1;
+        screen.delete_characters(Some(3));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 1));
+        assert_eq!(screen.display(), vec!["15   "]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!("1", fg = "red"),
+                co!("5", fg = "red"),
+                co!(default),
+                co!(default),
+                co!(default)
+            ]
+        );
+
+        // 2. Delete more than available
+        let mut screen = Screen::new(5, 1);
+        update(&mut screen, vec!["12345"], vec![0]);
+        screen.cursor.x = 2;
+        screen.delete_characters(Some(10));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 2));
+        assert_eq!(screen.display(), vec!["12   "]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!("1", fg = "red"),
+                co!("2", fg = "red"),
+                co!(default),
+                co!(default),
+                co!(default)
+            ]
+        );
+
+        // 3. Delete from start
+        let mut screen = Screen::new(5, 1);
+        update(&mut screen, vec!["12345"], vec![0]);
+        screen.delete_characters(Some(4));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["5    "]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!("5", fg = "red"),
+                co!(default),
+                co!(default),
+                co!(default),
+                co!(default)
+            ]
+        );
+    }
+
+    #[test]
+    fn test_erase_characters() {
+        // Basic case
+        let mut screen = Screen::new(3, 3);
+        update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
+
+        screen.erase_characters(Some(2));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["  m", "is ", "foo"]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![co!(default), co!(default), co!("m", fg = "red")]
+        );
+
+        screen.cursor.y = 2;
+        screen.cursor.x = 2;
+        screen.erase_characters(None);
+        assert_eq!((screen.cursor.y, screen.cursor.x), (2, 2));
+        assert_eq!(screen.display(), vec!["  m", "is ", "fo "]);
+
+        screen.cursor.y = 1;
+        screen.cursor.x = 1;
+        screen.erase_characters(Some(0));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (1, 1));
+        assert_eq!(screen.display(), vec!["  m", "i  ", "fo "]);
+
+        // Extreme cases
+        // 1. Erase from middle
+        let mut screen = Screen::new(5, 1);
+        update(&mut screen, vec!["12345"], vec![0]);
+        screen.cursor.x = 1;
+        screen.erase_characters(Some(3));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 1));
+        assert_eq!(screen.display(), vec!["1   5"]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!("1", fg = "red"),
+                co!(default),
+                co!(default),
+                co!(default),
+                co!("5", fg = "red")
+            ]
+        );
+
+        // 2. Erase more than available
+        let mut screen = Screen::new(5, 1);
+        update(&mut screen, vec!["12345"], vec![0]);
+        screen.cursor.x = 2;
+        screen.erase_characters(Some(10));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 2));
+        assert_eq!(screen.display(), vec!["12   "]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!("1", fg = "red"),
+                co!("2", fg = "red"),
+                co!(default),
+                co!(default),
+                co!(default)
+            ]
+        );
+
+        // 3. Erase from start
+        let mut screen = Screen::new(5, 1);
+        update(&mut screen, vec!["12345"], vec![0]);
+        screen.erase_characters(Some(4));
+        assert_eq!((screen.cursor.y, screen.cursor.x), (0, 0));
+        assert_eq!(screen.display(), vec!["    5"]);
+        assert_eq!(
+            tolist(&screen)[0],
+            cv![
+                co!(default),
+                co!(default),
+                co!(default),
+                co!(default),
+                co!("5", fg = "red")
+            ]
         );
     }
 }

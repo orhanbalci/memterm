@@ -88,12 +88,12 @@ where
                                 co.yield_(None);
                                 break;
                             } else {
-                                let mut current_param = match current.parse::<u32>() {
+                                let mut current_param = match current.parse::<u64>() {
                                     Ok(val) => val,
                                     _ => 0,
                                 };
-                                current_param = u32::min(current_param, 9999);
-                                params.push(current_param);
+                                current_param = u64::min(current_param, 9999);
+                                params.push(current_param as u32);
                                 if char == ";" {
                                     current = "".to_owned();
                                 } else {
@@ -104,8 +104,6 @@ where
                                             true,
                                         );
                                     } else {
-                                        dbg!("csi dispatch");
-                                        dbg!(&char, &params[..], false);
                                         listener.lock().unwrap().csi_dispatch(
                                             &char,
                                             &params[..],
@@ -169,7 +167,7 @@ mod test {
     use super::{Parser, CSI_COMMANDS, DECRC, DECSC, ESC, HTS, IND, NEL, RI, RIS};
     use crate::counter::Counter;
     use crate::debug_screen::DebugScreen;
-    use crate::parser::{CSI, FF, LF, VT};
+    use crate::parser::{CSI, FF, HVP, LF, VT};
 
     #[test]
     fn first_step() {
@@ -254,7 +252,6 @@ mod test {
 
             // Feed ESC [ 5 cmd
             parser.feed(format!("{}[5{}", ESC, cmd));
-            dbg!(event);
 
             let counter_lock = counter.lock().unwrap();
             assert_eq!(
@@ -334,6 +331,44 @@ mod test {
         if let Some(params) = counter_lock.get_last_params("reset_mode") {
             assert_eq!(*params, vec![9, 2]);
             assert!(counter_lock.get_last_private().unwrap());
+        }
+    }
+
+    #[test]
+    fn missing_params() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        // Feed CSI sequence with missing parameter
+        parser.feed(format!("{}[;{}", ESC, HVP)); // H is the HVP (Horizontal Vertical Position) command
+
+        let counter_lock = counter.lock().unwrap();
+
+        // Check cursor_position was called once
+        assert_eq!(counter_lock.get_count("cursor_position"), 1);
+
+        // Check parameters - should default to (0, 0) when missing
+        if let Some(params) = counter_lock.get_last_params("cursor_position") {
+            assert_eq!(*params, vec![0, 0]);
+        }
+    }
+
+    #[test]
+    fn overflow() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        // Feed CSI sequence with very large numbers
+        parser.feed(format!("{}[999999999999999;99999999999999{}", ESC, HVP));
+
+        let counter_lock = counter.lock().unwrap();
+
+        // Check cursor_position was called once
+        assert_eq!(counter_lock.get_count("cursor_position"), 1);
+
+        // Check parameters - should be clamped to 9999
+        if let Some(params) = counter_lock.get_last_params("cursor_position") {
+            assert_eq!(*params, vec![9999, 9999]);
         }
     }
 }

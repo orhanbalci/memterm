@@ -33,7 +33,6 @@ where
             parser_fsm: Gn::<String>::new_scoped(move |mut co| {
                 loop {
                     let mut char = co.yield_(Some(true)).unwrap_or_default();
-                    println!("parser working");
                     if ESC == char {
                         char = co.yield_(None).unwrap_or_default();
                         if char == "[" {
@@ -105,6 +104,8 @@ where
                                             true,
                                         );
                                     } else {
+                                        dbg!("csi dispatch");
+                                        dbg!(&char, &params[..], false);
                                         listener.lock().unwrap().csi_dispatch(
                                             &char,
                                             &params[..],
@@ -165,9 +166,10 @@ where
 mod test {
     use std::sync::{Arc, Mutex};
 
-    use super::{Parser, DECRC, DECSC, ESC, HTS, IND, NEL, RI, RIS};
+    use super::{Parser, CSI_COMMANDS, DECRC, DECSC, ESC, HTS, IND, NEL, RI, RIS};
     use crate::counter::Counter;
     use crate::debug_screen::DebugScreen;
+    use crate::parser::{CSI, FF, LF, VT};
 
     #[test]
     fn first_step() {
@@ -223,6 +225,115 @@ mod test {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn linefeed() {
+        // Create a counter to track linefeed calls
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        // Feed LF (Line Feed), VT (Vertical Tab), and FF (Form Feed)
+        parser.feed(format!("{}{}{}", LF, VT, FF));
+
+        // Check that linefeed was called exactly 3 times
+        assert_eq!(
+            counter.lock().unwrap().get_count("linefeed"),
+            3,
+            "Linefeed should have been called exactly 3 times"
+        );
+    }
+
+    #[test]
+    fn non_csi_sequences() {
+        for (cmd, event) in CSI_COMMANDS.iter() {
+            // a) Test single parameter
+            let counter = Arc::new(Mutex::new(Counter::new()));
+            let mut parser = Parser::new(counter.clone());
+
+            // Feed ESC [ 5 cmd
+            parser.feed(format!("{}[5{}", ESC, cmd));
+            dbg!(event);
+
+            let counter_lock = counter.lock().unwrap();
+            assert_eq!(
+                counter_lock.get_count(event),
+                1,
+                "Handler for {} should be called exactly once",
+                event
+            );
+
+            if let Some(params) = counter_lock.get_last_params(event) {
+                assert_eq!(
+                    params,
+                    &vec![5],
+                    "Handler for {} should receive [5] as parameters",
+                    event
+                );
+            }
+
+            // b) Test multiple parameters with CSI
+            let counter = Arc::new(Mutex::new(Counter::new()));
+            let mut parser = Parser::new(counter.clone());
+
+            // Feed CSI 5;12 cmd
+            parser.feed(format!("{}5;12{}", CSI, cmd));
+
+            let counter_lock = counter.lock().unwrap();
+            assert_eq!(
+                counter_lock.get_count(event),
+                1,
+                "Handler for {} should be called exactly once",
+                event
+            );
+
+            // if let Some(params) = counter_lock.get_last_params(event) {
+            //     assert_eq!(
+            //         params,
+            //         &vec![5, 12],
+            //         "Handler for {} should receive [5, 12] as parameters",
+            //         event
+            //     );
+            // }
+        }
+    }
+
+    #[test]
+    fn test_set_mode() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        parser.feed(format!("{}[?9;2h", ESC)); // Using CSI sequence to set modes
+
+        let counter_lock = counter.lock().unwrap();
+
+        // Check set_mode was called with correct arguments
+        assert_eq!(counter_lock.get_count("set_mode"), 1);
+
+        // Check last parameters passed to set_mode
+        if let Some(params) = counter_lock.get_last_params("set_mode") {
+            assert_eq!(*params, vec![9, 2]);
+            assert!(counter_lock.get_last_private().unwrap());
+        }
+    }
+
+    #[test]
+    fn test_reset_mode() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        parser.feed(format!("{}[?9;2l", ESC)); // Using CSI sequence to reset modes
+
+        let counter_lock = counter.lock().unwrap();
+
+        // Check reset_mode was called with correct arguments
+        assert_eq!(counter_lock.get_count("reset_mode"), 1);
+
+        // Check parameters passed to reset_mode
+        if let Some(params) = counter_lock.get_last_params("reset_mode") {
+            assert_eq!(*params, vec![9, 2]);
+            assert!(counter_lock.get_last_private().unwrap());
         }
     }
 }

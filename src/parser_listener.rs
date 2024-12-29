@@ -146,18 +146,20 @@ pub trait ParserListener {
     }
 
     fn csi_dispatch(&mut self, csi_command: &str, params: &[u32], is_private: bool) {
+        dbg!("dispatching CSI");
+        dbg!(csi_command);
         match csi_command {
             ec if ec == ICH => self.insert_characters(if !params.is_empty() {
                 Some(params[0])
             } else {
                 None
             }),
-            ec if ec == CUD => self.cursor_up(if !params.is_empty() {
+            ec if ec == CUD => self.cursor_down(if !params.is_empty() {
                 Some(params[0])
             } else {
                 None
             }),
-            ec if ec == CUU => self.cursor_down(if !params.is_empty() {
+            ec if ec == CUU => self.cursor_up(if !params.is_empty() {
                 Some(params[0])
             } else {
                 None
@@ -189,7 +191,11 @@ pub trait ParserListener {
             }),
             ec if ec == CUP => {
                 if !params.is_empty() {
-                    self.cursor_position(Some(params[0]), Some(params[1]));
+                    if params.len() == 1 {
+                        self.cursor_position(Some(params[0]), None);
+                    } else {
+                        self.cursor_position(Some(params[0]), Some(params[1]));
+                    }
                 } else {
                     self.cursor_position(None, None)
                 }

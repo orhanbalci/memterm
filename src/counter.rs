@@ -87,7 +87,16 @@ impl ParserListener for Counter {
 
     fn cursor_position(&mut self, line: Option<u32>, column: Option<u32>) {
         self.increment("cursor_position");
-        self.save_params("cursor_position", &[line.unwrap_or(1), column.unwrap_or(1)]);
+        let mut params = vec![];
+        if line.is_some() {
+            params.push(line.unwrap());
+        }
+
+        if column.is_some() {
+            params.push(column.unwrap());
+        }
+
+        self.save_params("cursor_position", params.as_slice());
     }
 
     fn cursor_to_column(&mut self, column: Option<u32>) {
@@ -147,7 +156,6 @@ impl ParserListener for Counter {
     }
 
     fn insert_characters(&mut self, count: Option<u32>) {
-        dbg!("buraya gelmeli");
         self.increment("insert_characters");
         self.save_params("insert_characters", &[count.unwrap_or(1)]);
     }

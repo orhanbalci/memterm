@@ -272,21 +272,22 @@ mod test {
             // Feed ESC [ 5 cmd
             parser.feed(format!("{}[5{}", ESC, cmd));
 
-            let counter_lock = counter.lock().unwrap();
             assert_eq!(
-                counter_lock.get_count(event),
+                counter.lock().unwrap().get_count(event),
                 1,
                 "Handler for {} should be called exactly once",
                 event
             );
 
-            if let Some(params) = counter_lock.get_last_params(event) {
-                assert_eq!(
-                    params,
-                    &vec![5],
-                    "Handler for {} should receive [5] as parameters",
-                    event
-                );
+            {
+                if let Some(params) = counter.lock().unwrap().get_last_params(event) {
+                    assert_eq!(
+                        params,
+                        &vec![5],
+                        "Handler for {} should receive [5] as parameters",
+                        event
+                    );
+                }
             }
 
             // b) Test multiple parameters with CSI
@@ -296,9 +297,8 @@ mod test {
             // Feed CSI 5;12 cmd
             parser.feed(format!("{}5;12{}", CSI, cmd));
 
-            let counter_lock = counter.lock().unwrap();
             assert_eq!(
-                counter_lock.get_count(event),
+                counter.lock().unwrap().get_count(event),
                 1,
                 "Handler for {} should be called exactly once",
                 event
@@ -316,7 +316,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_mode() {
+    fn set_mode() {
         let counter = Arc::new(Mutex::new(Counter::new()));
         let mut parser = Parser::new(counter.clone());
 
@@ -335,7 +335,7 @@ mod test {
     }
 
     #[test]
-    fn test_reset_mode() {
+    fn reset_mode() {
         let counter = Arc::new(Mutex::new(Counter::new()));
         let mut parser = Parser::new(counter.clone());
 
@@ -392,7 +392,7 @@ mod test {
     }
 
     #[test]
-    fn test_control_characters() {
+    fn control_characters() {
         let handler = Arc::new(Mutex::new(Counter::new()));
 
         let mut parser = Parser::new(handler.clone());
@@ -407,7 +407,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_title_icon_name() {
+    fn set_title_icon_name() {
         let test_cases = vec![
             (format!("{}{}", ESC, "]"), ST_C0.to_owned()),
             (format!("{}{}", ESC, "]"), ST.to_owned()),
@@ -441,5 +441,16 @@ mod test {
             parser.feed("➜".to_string());
             assert_eq!(screen.lock().unwrap().buffer[&0][&0].data, "➜");
         }
+    }
+
+    #[test]
+    fn define_charset() {
+        // Should be a noop. All input is UTF8.
+        let screen = Arc::new(Mutex::new(Screen::new(3, 3)));
+        let mut parser = Parser::new(screen.clone());
+
+        parser.feed(format!("{}(B", ESC)); // ESC ( B sequence
+
+        assert_eq!(screen.lock().unwrap().display()[0], "   ".to_string());
     }
 }

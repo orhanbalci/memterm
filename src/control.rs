@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 
 use lazy_static::lazy_static;
 
@@ -86,32 +86,32 @@ lazy_static! {
 
 // Define the CSI command mapping
 lazy_static! {
-    pub static ref CSI_COMMANDS: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
+    pub static ref CSI_COMMANDS: BTreeMap<&'static str, &'static str> = {
+        let mut m = BTreeMap::new();
         m.insert(ICH, "insert_characters");
-        // m.insert(CUU, "cursor_up");
-        // m.insert(CUD, "cursor_down");
-        // m.insert(CUF, "cursor_forward");
-        // m.insert(CUB, "cursor_back");
-        // m.insert(CNL, "cursor_down1");
-        // m.insert(CPL, "cursor_up1");
-        // m.insert(CHA, "cursor_to_column");
-        // m.insert(CUP, "cursor_position");
-        // m.insert(ED, "erase_in_display");
-        // m.insert(EL, "erase_in_line");
-        // m.insert(IL, "insert_lines");
-        // m.insert(DL, "delete_lines");
-        // m.insert(DCH, "delete_characters");
-        // m.insert(ECH, "erase_characters");
-        // m.insert(HPR, "cursor_forward");
-        // m.insert(DA, "report_device_attributes");
-        // m.insert(VPA, "cursor_to_line");
-        // m.insert(VPR, "cursor_down");
-        // m.insert(HVP, "cursor_position");
-        // m.insert(TBC, "clear_tab_stop");
-        // m.insert(SM, "set_mode");
-        // m.insert(RM, "reset_mode");
-        // m.insert(SGR, "select_graphic_rendition");
+        m.insert(CUU, "cursor_up");
+        m.insert(CUD, "cursor_down");
+        m.insert(CUF, "cursor_forward");
+        m.insert(CUB, "cursor_back");
+        m.insert(CNL, "cursor_down1");
+        m.insert(CPL, "cursor_up1");
+        m.insert(CHA, "cursor_to_column");
+        m.insert(CUP, "cursor_position");
+        m.insert(ED, "erase_in_display");
+        m.insert(EL, "erase_in_line");
+        m.insert(IL, "insert_lines");
+        m.insert(DL, "delete_lines");
+        m.insert(DCH, "delete_characters");
+        m.insert(ECH, "erase_characters");
+        m.insert(HPR, "cursor_forward");
+        m.insert(DA, "report_device_attributes");
+        m.insert(VPA, "cursor_to_line");
+        m.insert(VPR, "cursor_down");
+        m.insert(HVP, "cursor_position");
+        m.insert(TBC, "clear_tab_stop");
+        m.insert(SM, "set_mode");
+        m.insert(RM, "reset_mode");
+        m.insert(SGR, "select_graphic_rendition");
         m
     };
 }

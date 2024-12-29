@@ -2541,7 +2541,7 @@ mod test {
     }
 
     #[test]
-    fn test_save_cursor() {
+    fn save_cursor() {
         // a) Test cursor position
         let mut screen = Screen::new(10, 10);
         screen.save_cursor();
@@ -2590,7 +2590,7 @@ mod test {
     }
 
     #[test]
-    fn test_restore_cursor_with_none_saved() {
+    fn restore_cursor_with_none_saved() {
         let mut screen = Screen::new(10, 10);
         screen.set_mode(&[DECOM], false);
         screen.cursor.x = 5;
@@ -2605,7 +2605,7 @@ mod test {
     }
 
     #[test]
-    fn test_restore_cursor_out_of_bounds() {
+    fn restore_cursor_out_of_bounds() {
         let mut screen = Screen::new(10, 10);
 
         // a) Test with origin mode off
@@ -2631,7 +2631,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_lines_basic() {
+    fn insert_lines_basic() {
         // Basic insert without margins
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
@@ -2658,7 +2658,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_multiple_lines() {
+    fn insert_multiple_lines() {
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
         screen.insert_lines(Some(2));
@@ -2684,7 +2684,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_lines_with_margins() {
+    fn insert_lines_with_margins() {
         let mut screen = Screen::new(3, 5);
         update(
             &mut screen,
@@ -2718,7 +2718,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_lines_limited_margins() {
+    fn insert_lines_limited_margins() {
         let mut screen = Screen::new(3, 5);
         update(
             &mut screen,
@@ -2738,7 +2738,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_lines_overflow() {
+    fn insert_lines_overflow() {
         // Test inserting more lines than available within margins
         let mut screen = Screen::new(3, 5);
         update(
@@ -2755,7 +2755,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_lines_outside_margins() {
+    fn insert_lines_outside_margins() {
         // Test inserting when cursor is outside margins
         let mut screen = Screen::new(3, 5);
         update(
@@ -2771,7 +2771,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_lines_basic() {
+    fn delete_lines_basic() {
         // Test basic line deletion without margins
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
@@ -2798,7 +2798,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_lines_with_margins() {
+    fn delete_lines_with_margins() {
         let mut screen = Screen::new(3, 5);
         update(
             &mut screen,
@@ -2836,7 +2836,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_multiple_lines_with_margins() {
+    fn delete_multiple_lines_with_margins() {
         let mut screen = Screen::new(3, 5);
         update(
             &mut screen,
@@ -2874,7 +2874,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_lines_overflow() {
+    fn delete_lines_overflow() {
         let mut screen = Screen::new(3, 5);
         update(
             &mut screen,
@@ -2912,7 +2912,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_lines_outside_margins() {
+    fn delete_lines_outside_margins() {
         let mut screen = Screen::new(3, 5);
         update(
             &mut screen,
@@ -2946,7 +2946,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_lines_default_count() {
+    fn delete_lines_default_count() {
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![1]);
 
@@ -2994,7 +2994,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_characters_normal() {
+    fn insert_characters_normal() {
         let mut screen = Screen::new(3, 4);
         update(&mut screen, vec!["sam", "is ", "foo", "bar"], vec![0]);
 
@@ -3019,7 +3019,7 @@ mod test {
     }
 
     #[test]
-    fn test_insert_characters_middle() {
+    fn insert_characters_middle() {
         let mut screen = Screen::new(3, 4);
         update(&mut screen, vec!["sam", "is ", "foo", "bar"], vec![0]);
 
@@ -3077,7 +3077,7 @@ mod test {
     }
 
     #[test]
-    fn test_delete_characters() {
+    fn delete_characters() {
         // Basic case
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
@@ -3159,7 +3159,7 @@ mod test {
     }
 
     #[test]
-    fn test_erase_characters() {
+    fn erase_characters() {
         // Basic case
         let mut screen = Screen::new(3, 3);
         update(&mut screen, vec!["sam", "is ", "foo"], vec![0]);
@@ -3240,7 +3240,7 @@ mod test {
     }
 
     #[test]
-    fn test_erase_in_line() {
+    fn erase_in_line() {
         // Initial setup
         let mut screen = Screen::new(5, 5);
         update(
@@ -3338,7 +3338,7 @@ mod test {
     }
 
     #[test]
-    fn test_erase_in_display() {
+    fn erase_in_display() {
         // Initial setup
         let mut screen = Screen::new(5, 5);
         update(
@@ -3525,7 +3525,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor_up() {
+    fn cursor_up() {
         let mut screen = Screen::new(10, 10);
 
         // Moving the cursor up at the top doesn't do anything
@@ -3545,7 +3545,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor_down() {
+    fn cursor_down() {
         let mut screen = Screen::new(10, 10);
 
         // Moving the cursor down at the bottom doesn't do anything
@@ -3566,7 +3566,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor_back() {
+    fn cursor_back() {
         let mut screen = Screen::new(10, 10);
 
         // Moving the cursor left at the margin doesn't do anything
@@ -3587,7 +3587,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor_back_last_column() {
+    fn cursor_back_last_column() {
         let mut screen = Screen::new(13, 1);
         screen.draw("Hello, world!");
         assert_eq!(screen.cursor.x, screen.columns);
@@ -3597,7 +3597,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor_forward() {
+    fn cursor_forward() {
         let mut screen = Screen::new(10, 10);
 
         // Moving the cursor right at the margin doesn't do anything
@@ -3617,7 +3617,7 @@ mod test {
     }
 
     #[test]
-    fn test_cursor_position() {
+    fn cursor_position() {
         let mut screen = Screen::new(10, 10);
 
         // a) testing that we expect 1-indexed values
@@ -3650,7 +3650,7 @@ mod test {
     }
 
     #[test]
-    fn test_unicode() {
+    fn unicode() {
         let screen = Arc::new(Mutex::new(Screen::new(4, 2)));
         let mut parser = Parser::new(screen.clone());
 
@@ -3663,7 +3663,7 @@ mod test {
     }
 
     #[test]
-    fn test_alignment_display() {
+    fn alignment_display() {
         let mut screen = Screen::new(5, 5);
         screen.set_mode(&[LNM], false);
 
@@ -3700,7 +3700,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_margins() {
+    fn set_margins() {
         let mut screen = Screen::new(10, 10);
 
         assert!(screen.margins.is_none());
@@ -3720,7 +3720,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_margins_zero() {
+    fn set_margins_zero() {
         // See https://github.com/selectel/pyte/issues/61
         let mut screen = Screen::new(80, 24);
 
@@ -3732,7 +3732,7 @@ mod test {
     }
 
     #[test]
-    fn test_hide_cursor() {
+    fn hide_cursor() {
         let mut screen = Screen::new(10, 10);
 
         // DECTCEM is set by default
@@ -3749,7 +3749,7 @@ mod test {
     }
 
     #[test]
-    fn test_screen_set_icon_name_title() {
+    fn screen_set_icon_name_title() {
         let mut screen = Screen::new(10, 1);
 
         let text = "±";

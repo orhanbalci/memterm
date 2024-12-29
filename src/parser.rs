@@ -15,7 +15,7 @@ where
     T: ParserListener + Send + 'a,
 {
     parser_fsm: Generator<'a, String, Option<bool>>,
-    _parser_state: Arc<Mutex<ParserState>>,
+    parser_state: Arc<Mutex<ParserState>>,
     taking_plain_text: bool,
     listener: Arc<Mutex<T>>,
 }
@@ -63,7 +63,9 @@ where
                     }
                     if BASIC.iter().any(|cf| *cf == char) {
                         println!("basic dispatch");
-                        if char == SI || char == SO {
+                        if (char == SI || char == SO)
+                            && parser_state_cloned.lock().unwrap().use_utf8
+                        {
                             continue;
                         } else {
                             listener.lock().unwrap().basic_dispatch(&char);
@@ -145,7 +147,7 @@ where
                     }
                 }
             }),
-            _parser_state: parser_state,
+            parser_state,
         };
 
         a.parser_fsm.send("".to_owned());
@@ -174,6 +176,10 @@ where
             }
         }
     }
+
+    pub fn set_use_utf8(&mut self, use_utf8: bool) {
+        self.parser_state.lock().unwrap().use_utf8 = use_utf8;
+    }
 }
 
 // fn select_other_charset(&self, input: &str) {}
@@ -185,7 +191,7 @@ mod test {
     use super::{Parser, CSI_COMMANDS, DECRC, DECSC, ESC, HTS, IND, NEL, OSC, RI, RIS, ST, ST_C0};
     use crate::counter::Counter;
     use crate::debug_screen::DebugScreen;
-    use crate::parser::{CSI, FF, HVP, LF, VT};
+    use crate::parser::{CSI, FF, HVP, LF, SI, SO, VT};
     use crate::screen::Screen;
 
     #[test]
@@ -452,5 +458,40 @@ mod test {
         parser.feed(format!("{}(B", ESC)); // ESC ( B sequence
 
         assert_eq!(screen.lock().unwrap().display()[0], "   ".to_string());
+    }
+
+    #[test]
+    fn test_non_utf8_shifts() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+
+        // Create parser with screen
+        let mut parser = Parser::new(counter.clone());
+        parser.set_use_utf8(false);
+
+        // Feed SI (Shift In) and SO (Shift Out) control characters
+        parser.feed(SI.to_string()); // SI = "\x0F"
+        parser.feed(SO.to_string()); // SO = "\x0E"
+
+        // Get count of shift_in and shift_out calls
+        assert_eq!(counter.lock().unwrap().get_count("shift_in"), 1);
+        assert_eq!(counter.lock().unwrap().get_count("shift_out"), 1);
+    }
+
+    #[test]
+    fn test_dollar_skip() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        // Feed CSI sequence with dollar commands
+        parser.feed(format!("{}12$p", CSI)); // CSI 12 $ p sequence
+
+        // Check that draw wasn't called
+        assert_eq!(counter.lock().unwrap().get_count("draw"), 0);
+
+        // Feed another CSI sequence with dollar command
+        parser.feed(format!("{}1;2;3;4$x", CSI)); // CSI 1;2;3;4 $ x sequence
+
+        // Check that draw still wasn't called
+        assert_eq!(counter.lock().unwrap().get_count("draw"), 0);
     }
 }

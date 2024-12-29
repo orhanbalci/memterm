@@ -62,7 +62,9 @@ pub const RIS: &str = ascii!(6 / 3);
 
 pub const BASIC: &[&str; 9] = &[BEL, BS, HT, LF, VT, FF, CR, SO, SI];
 pub const ALLOWED_IN_CSI: &[&str; 7] = &[BEL, BS, HT, LF, VT, FF, CR];
-pub const OSC_TERMINATORS: &[&str; 2] = &[BEL, ST];
+pub const ST_C0: &str = "\u{001B}\u{009C}";
+pub const ST_C1: &str = ST;
+pub const OSC_TERMINATORS: &[&str; 3] = &[BEL, ST_C0, ST_C1];
 
 lazy_static! {
 // Special characters set

@@ -119,13 +119,28 @@ where
                         if code == "R" || code == "p" {
                             continue; // reset palette not implemented
                         }
-                        let _param = "".to_owned();
+                        let mut param = "".to_owned();
 
-                        loop {
+                        'param_loop: loop {
                             let mut accu = co.yield_(None).unwrap_or_default();
                             if accu == ESC {
                                 accu.push_str(&co.yield_(None).unwrap_or_default());
                             }
+
+                            if OSC_TERMINATORS.contains(&accu.as_str()) {
+                                break 'param_loop;
+                            } else {
+                                param.push(accu.chars().next().unwrap());
+                            }
+                        }
+
+                        param = param.chars().skip(1).take(param.len() - 1).collect();
+
+                        if "01".contains(&code) {
+                            listener.lock().unwrap().set_icon_name(&param);
+                        }
+                        if "02".contains(&code) {
+                            listener.lock().unwrap().set_title(&param);
                         }
                     }
                 }
@@ -137,13 +152,16 @@ where
         a
     }
 
+    pub fn is_special_start(s: &str) -> bool {
+        SPECIAL.iter().any(|special| s.starts_with(special))
+    }
+
     pub fn feed(&mut self, data: String) {
         for c in data.chars() {
             let char_str = c.to_string();
 
             // If we're in plain text mode and this is a special character
-            if self.taking_plain_text && SPECIAL.contains(&char_str.as_str()) {
-                // dbg!(char_str.clone());
+            if self.taking_plain_text && Self::is_special_start(&char_str) {
                 self.taking_plain_text = false;
             }
 
@@ -164,10 +182,11 @@ where
 mod test {
     use std::sync::{Arc, Mutex};
 
-    use super::{Parser, CSI_COMMANDS, DECRC, DECSC, ESC, HTS, IND, NEL, RI, RIS};
+    use super::{Parser, CSI_COMMANDS, DECRC, DECSC, ESC, HTS, IND, NEL, OSC, RI, RIS, ST, ST_C0};
     use crate::counter::Counter;
     use crate::debug_screen::DebugScreen;
     use crate::parser::{CSI, FF, HVP, LF, VT};
+    use crate::screen::Screen;
 
     #[test]
     fn first_step() {
@@ -369,6 +388,58 @@ mod test {
         // Check parameters - should be clamped to 9999
         if let Some(params) = counter_lock.get_last_params("cursor_position") {
             assert_eq!(*params, vec![9999, 9999]);
+        }
+    }
+
+    #[test]
+    fn test_control_characters() {
+        let handler = Arc::new(Mutex::new(Counter::new()));
+
+        let mut parser = Parser::new(handler.clone());
+
+        parser.feed(format!("{}10;\t\t\n\r\n10{}", CSI, HVP));
+
+        assert_eq!(handler.lock().unwrap().get_count("cursor_position"), 1);
+        assert_eq!(
+            handler.lock().unwrap().get_last_params("cursor_position"),
+            Some(&vec![10, 10])
+        );
+    }
+
+    #[test]
+    fn test_set_title_icon_name() {
+        let test_cases = vec![
+            (format!("{}{}", ESC, "]"), ST_C0.to_owned()),
+            (format!("{}{}", ESC, "]"), ST.to_owned()),
+            (OSC.to_owned(), ST_C0.to_owned()),
+            (OSC.to_owned(), ST.to_owned()),
+        ];
+
+        for (osc, st) in test_cases {
+            let screen = Arc::new(Mutex::new(Screen::new(80, 24)));
+            let mut parser = Parser::new(screen.clone());
+
+            // // a) set only icon name
+            parser.feed(format!("{}1;foo{}", osc, st));
+            assert_eq!(screen.lock().unwrap().icon_name, "foo");
+
+            // // b) set only title
+            parser.feed(format!("{}2;foo{}", osc, st));
+            assert_eq!(screen.lock().unwrap().title, "foo");
+
+            // // c) set both icon name and title
+            parser.feed(format!("{}0;bar{}", osc, st));
+            assert_eq!(screen.lock().unwrap().title, "bar");
+            assert_eq!(screen.lock().unwrap().icon_name, "bar");
+
+            //d) set both icon name and title then terminate with BEL
+            parser.feed(format!("{}0;bar{}", osc, st));
+            assert_eq!(screen.lock().unwrap().title, "bar");
+            assert_eq!(screen.lock().unwrap().icon_name, "bar");
+
+            // e) test ➜ ('\xe2\x9e\x9c') symbol, that contains string terminator \x9c
+            parser.feed("➜".to_string());
+            assert_eq!(screen.lock().unwrap().buffer[&0][&0].data, "➜");
         }
     }
 }

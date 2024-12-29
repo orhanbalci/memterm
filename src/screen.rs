@@ -639,6 +639,7 @@ impl ParserListener for Screen {
     ///   screen state. Full-width characters are rendered into two consecutive
     ///   character containers.
     fn draw(&mut self, data: &str) {
+        dbg!("draw");
         let data = data
             .chars()
             .map(|c| {

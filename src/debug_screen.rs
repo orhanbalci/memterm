@@ -1,161 +1,180 @@
 use crate::parser_listener::ParserListener;
 
-pub struct DebugScreen {}
+pub struct DebugScreen {
+    pub output: Vec<String>,
+}
+
+impl DebugScreen {
+    pub fn new() -> Self {
+        DebugScreen { output: Vec::new() }
+    }
+
+    fn record(&mut self, s: String) {
+        println!("{}", s);
+        self.output.push(s);
+    }
+}
 
 impl ParserListener for DebugScreen {
     fn alignment_display(&mut self) {
-        println!("alignment display");
+        self.record("[\"alignment_display\"]".to_string());
     }
 
     fn define_charset(&mut self, code: &str, mode: &str) {
-        println!("defining charset code {} mode {}", code, mode);
+        self.record(format!("[\"define_charset\", [{}, {}]]", code, mode));
     }
 
     fn reset(&mut self) {
-        println!("reset");
+        self.record("[\"reset\"]".to_string());
     }
 
     fn index(&mut self) {
-        println!("index");
+        self.record("[\"index\"]".to_string());
     }
 
     fn linefeed(&mut self) {
-        println!("linefeed");
+        self.record("[\"linefeed\"]".to_string());
     }
 
     fn reverse_index(&mut self) {
-        println!("reverse_index");
+        self.record("[\"reverse_index\"]".to_string());
     }
 
     fn set_tab_stop(&mut self) {
-        println!("set_tab_stop");
+        self.record("[\"set_tab_stop\"]".to_string());
     }
 
     fn save_cursor(&mut self) {
-        println!("save_cursor");
+        self.record("[\"save_cursor\"]".to_string());
     }
 
     fn restore_cursor(&mut self) {
-        println!("restore_cursor");
+        self.record("[\"restore_cursor\"]".to_string());
     }
 
     fn bell(&mut self) {
-        println!("bell");
+        self.record("[\"bell\"]".to_string());
     }
 
     fn backspace(&mut self) {
-        println!("backspace");
+        self.record("[\"backspace\"]".to_string());
     }
 
     fn tab(&mut self) {
-        println!("tab");
+        self.record("[\"tab\"]".to_string());
     }
 
     fn cariage_return(&mut self) {
-        println!("carriage return")
+        self.record("[\"carriage_return\"]".to_string());
     }
 
     fn draw(&mut self, input: &str) {
-        println!("draw input {}", input);
+        self.record(format!("[\"draw\", {:?}]", input));
     }
 
     fn insert_characters(&mut self, count: Option<u32>) {
-        println!("insert_characters count {:?}", count);
+        self.record(format!("[\"insert_characters\", {:?}]", count));
     }
 
     fn cursor_up(&mut self, count: Option<u32>) {
-        println!("cursor up count {:?} ", count);
+        self.record(format!("[\"cursor_up\", {:?}]", count));
     }
 
     fn cursor_down(&mut self, count: Option<u32>) {
-        println!("cursor down count {:?}", count);
+        self.record(format!("[\"cursor_down\", {:?}]", count));
     }
 
     fn cursor_forward(&mut self, count: Option<u32>) {
-        println!("cursor forward count {:?}", count);
+        self.record(format!("[\"cursor_forward\", {:?}]", count));
     }
 
     fn cursor_back(&mut self, count: Option<u32>) {
-        println!("cursor back count {:?}", count);
+        self.record(format!("[\"cursor_back\", {:?}]", count));
     }
 
     fn cursor_down1(&mut self, count: Option<u32>) {
-        println!("cursor down count {:?}", count);
+        self.record(format!("[\"cursor_down1\", {:?}]", count));
     }
 
     fn cursor_up1(&mut self, count: Option<u32>) {
-        println!("cursor up1 count {:?}", count);
+        self.record(format!("[\"cursor_up1\", {:?}]", count));
     }
 
     fn cursor_to_column(&mut self, character: Option<u32>) {
-        println!("cursor to column character {:?}", character);
+        self.record(format!("[\"cursor_to_column\", {:?}]", character));
     }
 
-    fn cursor_position(&mut self, _line: Option<u32>, _character: Option<u32>) {
-        println!("cursor position");
+    fn cursor_position(&mut self, line: Option<u32>, character: Option<u32>) {
+        self.record(format!(
+            "[\"cursor_position\", {:?}, {:?}]",
+            line, character
+        ));
     }
 
-    fn erase_in_display(&mut self, _how: Option<u32>, _private: Option<bool>) {
-        println!("erase in display");
+    fn erase_in_display(&mut self, how: Option<u32>, private: Option<bool>) {
+        self.record(format!("[\"erase_in_display\", {:?}, {:?}]", how, private));
     }
 
-    fn erase_in_line(&mut self, _how: Option<u32>, _private: Option<bool>) {
-        println!("erase in line");
+    fn erase_in_line(&mut self, how: Option<u32>, private: Option<bool>) {
+        self.record(format!("[\"erase_in_line\", {:?}, {:?}]", how, private));
     }
 
-    fn insert_lines(&mut self, _count: Option<u32>) {
-        println!("insert lines")
+    fn insert_lines(&mut self, count: Option<u32>) {
+        self.record(format!("[\"insert_lines\", {:?}]", count));
     }
 
-    fn delete_lines(&mut self, _count: Option<u32>) {
-        println!("delete lines");
+    fn delete_lines(&mut self, count: Option<u32>) {
+        self.record(format!("[\"delete_lines\", {:?}]", count));
     }
 
-    fn delete_characters(&mut self, _count: Option<u32>) {
-        println!("delete characters");
+    fn delete_characters(&mut self, count: Option<u32>) {
+        self.record(format!("[\"delete_characters\", {:?}]", count));
     }
 
-    fn erase_characters(&mut self, _count: Option<u32>) {
-        println!("erase characters");
+    fn erase_characters(&mut self, count: Option<u32>) {
+        self.record(format!("[\"erase_characters\", {:?}]", count));
     }
 
-    fn report_device_attributes(&mut self, _mode: Option<u32>, _private: Option<bool>) {
-        println!("report device attributes");
+    fn report_device_attributes(&mut self, mode: Option<u32>, private: Option<bool>) {
+        self.record(format!(
+            "[\"report_device_attributes\", {:?}, {:?}]",
+            mode, private
+        ));
     }
 
-    fn cursor_to_line(&mut self, _line: Option<u32>) {
-        println!("cursor to line");
+    fn cursor_to_line(&mut self, line: Option<u32>) {
+        self.record(format!("[\"cursor_to_line\", {:?}]", line));
     }
 
-    fn clear_tab_stop(&mut self, _how: Option<u32>) {
-        println!("clear tab stop");
+    fn clear_tab_stop(&mut self, how: Option<u32>) {
+        self.record(format!("[\"clear_tab_stop\", {:?}]", how));
     }
 
-    fn set_mode(&mut self, _modes: &[u32], _is_private: bool) {
-        println!("set mode");
+    fn set_mode(&mut self, modes: &[u32], is_private: bool) {
+        self.record(format!("[\"set_mode\", {:?}, {:?}]", modes, is_private));
     }
 
-    fn reset_mode(&mut self, _modes: &[u32], _is_private: bool) {
-        println!("reset mode");
+    fn reset_mode(&mut self, modes: &[u32], is_private: bool) {
+        self.record(format!("[\"reset_mode\", {:?}, {:?}]", modes, is_private));
     }
 
-    fn select_graphic_rendition(&mut self, _modes: &[u32]) {
-        println!("select graphic rendition");
+    fn select_graphic_rendition(&mut self, modes: &[u32]) {
+        self.record(format!("[\"select_graphic_rendition\", {:?}]", modes));
     }
 
     fn shift_out(&mut self) {
-        println!("shift out");
+        self.record("[\"shift_out\"]".to_string());
     }
 
     fn shift_in(&mut self) {
-        println!("shift in");
+        self.record("[\"shift_in\"]".to_string());
     }
 
     fn set_title(&mut self, title: &str) {
-        println!("set_title {}", title);
+        self.record(format!("[\"set_title\", {:?}]", title));
     }
 
     fn set_icon_name(&mut self, icon_name: &str) {
-        println!("set icon_name {}", icon_name);
+        self.record(format!("[\"set_icon_name\", {:?}]", icon_name));
     }
 }

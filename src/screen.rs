@@ -453,15 +453,13 @@ impl ParserListener for Screen {
             let mut new_buffer: HashMap<u32, HashMap<u32, CharOpts>> = HashMap::new();
             // Copy lines before top margin unchanged
             for y in 0..top {
-                if let Some(line) = self.buffer.get(&y) {
-                    new_buffer.insert(y, line.clone());
-                }
+                let line = self.buffer.entry(y).or_insert(HashMap::new());
+                new_buffer.insert(y, line.clone());
             }
             // Move lines up (decrement keys)
             for y in top..bottom {
-                if let Some(line) = self.buffer.get(&(y + 1)) {
-                    new_buffer.insert(y, line.clone());
-                }
+                let line = self.buffer.entry(y + 1).or_insert(HashMap::new());
+                new_buffer.insert(y, line.clone());
             }
 
             // Insert empty line at bottom
@@ -469,9 +467,8 @@ impl ParserListener for Screen {
 
             // Copy lines after bottom margin unchanged
             for y in (bottom + 1)..self.lines {
-                if let Some(line) = self.buffer.get(&y) {
-                    new_buffer.insert(y, line.clone());
-                }
+                let line = self.buffer.entry(y).or_insert(HashMap::new());
+                new_buffer.insert(y, line.clone());
             }
 
             // Replace old buffer with new one
@@ -504,16 +501,14 @@ impl ParserListener for Screen {
 
             // Copy lines before top margin unchanged
             for y in 0..top {
-                if let Some(line) = self.buffer.get(&y) {
-                    new_buffer.insert(y, line.clone());
-                }
+                let line = self.buffer.entry(y).or_insert(HashMap::new());
+                new_buffer.insert(y, line.clone());
             }
 
             // Move lines within margins down
             for y in (top..=bottom).rev() {
-                if let Some(line) = self.buffer.get(&y) {
-                    new_buffer.insert(y + 1, line.clone());
-                }
+                let line = self.buffer.entry(y).or_insert(HashMap::new());
+                new_buffer.insert(y + 1, line.clone());
             }
 
             // Insert empty line at top margin
@@ -521,9 +516,8 @@ impl ParserListener for Screen {
 
             // Copy lines after bottom margin unchanged
             for y in (bottom + 1)..self.lines {
-                if let Some(line) = self.buffer.get(&y) {
-                    new_buffer.insert(y, line.clone());
-                }
+                let line = self.buffer.entry(y).or_insert(HashMap::new());
+                new_buffer.insert(y, line.clone());
             }
 
             self.buffer = new_buffer;
@@ -639,7 +633,6 @@ impl ParserListener for Screen {
     ///   screen state. Full-width characters are rendered into two consecutive
     ///   character containers.
     fn draw(&mut self, data: &str) {
-        dbg!("draw");
         let data = data
             .chars()
             .map(|c| {
@@ -866,6 +859,7 @@ impl ParserListener for Screen {
     ///
     /// This method accepts any number of positional arguments as some `clear` implementations include a `;` after the first parameter causing the stream to assume a `0` second parameter.
     fn erase_in_display(&mut self, how: Option<u32>, _private: Option<bool>) {
+        dbg!(how, _private);
         let interval: std::ops::Range<u32> = match how {
             Some(0) => self.cursor.y + 1..self.lines,
             Some(1) => 0..self.cursor.y,
@@ -873,9 +867,12 @@ impl ParserListener for Screen {
             _ => 0..0, // Handle invalid `how` values
         };
 
+        dbg!(interval.clone());
+
         self.dirty.extend(interval.clone());
         for y in interval.clone() {
-            let line = &mut self.buffer.get_mut(&y).expect("can not retrieve line");
+            // let keys = self.buffer.keys().cloned().collect::<Vec<u32>>();
+            let line = self.buffer.entry(y).or_insert(HashMap::new());
             for x in 0..line.len() {
                 line.insert(x as u32, self.cursor.attr.clone());
             }
@@ -899,10 +896,7 @@ impl ParserListener for Screen {
             } // Handle invalid `how` values if necessary
         };
 
-        let line = self
-            .buffer
-            .get_mut(&self.cursor.y)
-            .expect("can not retrieve line");
+        let line = self.buffer.entry(self.cursor.y).or_insert(HashMap::new());
         for x in interval {
             line.insert(x, self.cursor.attr.clone());
         }
@@ -973,17 +967,16 @@ impl ParserListener for Screen {
         let count = count.map(|a| if a > 0 { a } else { 1 }).unwrap_or(1);
 
         let default_char = self.default_char();
-        if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
-            for x in self.cursor.x..self.columns {
-                if x + count <= self.columns {
-                    if let Some(char_opts) = line.remove(&(x + count)) {
-                        line.insert(x, char_opts);
-                    } else {
-                        line.insert(x, default_char.clone());
-                    }
+        let line = self.buffer.entry(self.cursor.y).or_insert(HashMap::new());
+        for x in self.cursor.x..self.columns {
+            if x + count <= self.columns {
+                if let Some(char_opts) = line.remove(&(x + count)) {
+                    line.insert(x, char_opts);
                 } else {
-                    line.remove(&x);
+                    line.insert(x, default_char.clone());
                 }
+            } else {
+                line.remove(&x);
             }
         }
     }
@@ -1004,10 +997,9 @@ impl ParserListener for Screen {
         self.dirty.insert(self.cursor.y);
         let count = count.map(|a| if a > 0 { a } else { 1 }).unwrap_or(1);
 
-        if let Some(line) = self.buffer.get_mut(&self.cursor.y) {
-            for x in self.cursor.x..std::cmp::min(self.cursor.x + count, self.columns) {
-                line.insert(x, self.cursor.attr.clone());
-            }
+        let line = self.buffer.entry(self.cursor.y).or_insert(HashMap::new());
+        for x in self.cursor.x..std::cmp::min(self.cursor.x + count, self.columns) {
+            line.insert(x, self.cursor.attr.clone());
         }
     }
     /// Report terminal identity.
@@ -1105,7 +1097,6 @@ impl ParserListener for Screen {
         // moves to the home position.
         dbg!(mode_list.clone());
         if mode_list.iter().any(|m| *m == DECCOLM) {
-            dbg!("DECCOLM");
             self.saved_columns = Some(self.columns);
             self.resize(None, Some(132));
             self.erase_in_display(Some(2), None);

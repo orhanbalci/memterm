@@ -8,15 +8,15 @@ use crate::control::*;
 use crate::parser_listener::ParserListener;
 
 pub struct ParserState {
-    use_utf8: bool,
+    pub(crate) use_utf8: bool,
 }
 pub struct Parser<'a, T>
 where
     T: ParserListener + Send + 'a,
 {
     parser_fsm: Generator<'a, String, Option<bool>>,
-    parser_state: Arc<Mutex<ParserState>>,
-    taking_plain_text: bool,
+    pub(crate) parser_state: Arc<Mutex<ParserState>>,
+    pub(crate) taking_plain_text: bool,
     listener: Arc<Mutex<T>>,
 }
 
@@ -196,7 +196,7 @@ mod test {
 
     #[test]
     fn first_step() {
-        let listener = Arc::new(Mutex::new(DebugScreen {}));
+        let listener = Arc::new(Mutex::new(DebugScreen::new()));
         let mut parser = Parser::new(listener.clone());
         parser.feed(String::default());
         parser.feed(ESC.to_owned());
@@ -493,5 +493,17 @@ mod test {
 
         // Check that draw still wasn't called
         assert_eq!(counter.lock().unwrap().get_count("draw"), 0);
+    }
+
+    #[test]
+    fn escape_like() {
+        let counter = Arc::new(Mutex::new(Counter::new()));
+        let mut parser = Parser::new(counter.clone());
+
+        // Feed CSI sequence with dollar commands
+        parser.feed("[^]".to_owned()); // CSI 12 $ p sequence
+
+        // Check that draw wasn't called
+        assert_eq!(counter.lock().unwrap().get_count("draw"), 3);
     }
 }

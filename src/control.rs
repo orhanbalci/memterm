@@ -19,10 +19,10 @@ pub const SUB: &str = ascii!(1 / 10);
 pub const VT: &str = ascii!(0 / 11);
 
 //C1 codes
-pub const CSI: &str = ascii!(5 / 11);
+pub const CSI: &str = "\u{009B}";
 pub const HTS: &str = ascii!(4 / 8);
 pub const NEL: &str = ascii!(4 / 5);
-pub const OSC: &str = ascii!(5 / 13);
+pub const OSC: &str = "\u{009D}";
 pub const RI: &str = ascii!(4 / 13);
 pub const ST: &str = ascii!(5 / 12);
 

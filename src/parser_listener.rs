@@ -146,8 +146,6 @@ pub trait ParserListener {
     }
 
     fn csi_dispatch(&mut self, csi_command: &str, params: &[u32], is_private: bool) {
-        dbg!("dispatching CSI");
-        dbg!(csi_command);
         match csi_command {
             ec if ec == ICH => self.insert_characters(if !params.is_empty() {
                 Some(params[0])

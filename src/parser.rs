@@ -62,7 +62,6 @@ where
                         }
                     }
                     if BASIC.iter().any(|cf| *cf == char) {
-                        println!("basic dispatch");
                         if (char == SI || char == SO)
                             && parser_state_cloned.lock().unwrap().use_utf8
                         {

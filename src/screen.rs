@@ -873,7 +873,8 @@ impl ParserListener for Screen {
         for y in interval.clone() {
             // let keys = self.buffer.keys().cloned().collect::<Vec<u32>>();
             let line = self.buffer.entry(y).or_insert(HashMap::new());
-            for x in 0..line.len() {
+
+            for x in 0..self.columns {
                 line.insert(x as u32, self.cursor.attr.clone());
             }
         }

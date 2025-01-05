@@ -227,7 +227,7 @@ pub trait ParserListener {
             ec if ec == DCH => self.delete_characters(params.iter().cloned().next()),
             ec if ec == ECH => self.erase_characters(params.iter().cloned().next()),
             ec if ec == HPR => self.cursor_forward(params.iter().cloned().next()),
-            ec if ec == DA => self.report_device_attributes(params.iter().cloned().next(), None),
+            ec if ec == DA => self.report_device_attributes(params.iter().cloned().next(), None), // TODO handle second parameter
             ec if ec == VPA => self.cursor_to_line(params.iter().cloned().next()),
             ec if ec == VPR => self.cursor_down(params.iter().cloned().next()),
             ec if ec == HVP => {
@@ -237,8 +237,8 @@ pub trait ParserListener {
             ec if ec == SM => self.set_mode(params, is_private),
             ec if ec == RM => self.reset_mode(params, is_private),
             ec if ec == SGR => self.select_graphic_rendition(params),
-            _ => {
-                println!("unexpected csi escape code");
+            ec => {
+                println!("unexpected csi escape code {}", ec);
             }
         }
     }

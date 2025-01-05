@@ -80,14 +80,13 @@ mod test {
     use crate::debug_screen::DebugScreen;
     use crate::screen::Screen;
     #[test]
-    #[ignore]
     fn input_output() {
         // List of test cases
         // let test_cases = vec!["cat-gpl3", "find-etc", "htop", "ls", "mc", "top", "vi"];
         // let test_cases = vec!["vi"];
         //let test_cases = vec!["find-etc"];
         //let test_cases = vec!["cat-gpl3"];
-        let test_cases = vec!["vi"];
+        let test_cases = vec!["htop"];
         // Get path to captured directory relative to this test file
         let captured_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("assets")
@@ -130,7 +129,7 @@ mod test {
     #[test]
     fn debug_printer() {
         // List of test cases
-        let test_cases = vec!["mc"];
+        let test_cases = vec!["htop"];
 
         // Get path to captured directory relative to this test file
         let captured_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -151,8 +150,8 @@ mod test {
             parser.feed(&input);
 
             // Write recorded output to mc.debug file
-            // let debug_output = debug_screen.lock().unwrap().output.join("\n");
-            // fs::write("mc.debug", debug_output).expect("Failed to write debug output to file");
+            let debug_output = debug_screen.lock().unwrap().output.join("\n");
+            fs::write("htop.memterm", debug_output).expect("Failed to write debug output to file");
         }
     }
 }

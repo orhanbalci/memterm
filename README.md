@@ -117,14 +117,14 @@ fn draw() {
  cargo doc --open
  ```
 
- ## Contributing
+ ## 👥 Contributing
 
  Contributions are encouraged! You can:
 
  - Report bugs and request features via [issues](https://github.com/orhanbalci/memterm/issues).
  - Submit pull requests to enhance the library.
 
- ### Development Setup
+ ### 🚧 Development Setup
 
  1. Clone the repository:
     ```sh
@@ -142,7 +142,7 @@ fn draw() {
     cargo test
     ```
 
- ## License
+ ## 📝 License
 
  **memterm** is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
 

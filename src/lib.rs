@@ -16,7 +16,7 @@
 //!
 //! ## Getting Started
 //!
-//! ### Installation
+//! ### 📦 Installation
 //!
 //! Add **memterm** to your `Cargo.toml` file:
 //!
@@ -31,7 +31,7 @@
 //! cargo build
 //! ```
 //!
-//! ### Example Usage
+//! ### 🔭Example Usage
 //!
 //! ```rust ignore
 //! #[test]
@@ -96,7 +96,7 @@
 //! }
 //! ```
 //!
-//! ### Core Features
+//! ### 🧩 Core Features
 //!
 //! 1. **Escape Sequence Parsing**
 //!    Automatically interprets and applies ANSI escape sequences for text formatting, cursor movements, and more.

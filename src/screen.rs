@@ -180,44 +180,6 @@ impl Screen {
         screen
     }
 
-    ///A list of screen lines as unicode strings.
-    pub fn display(&mut self) -> Vec<String> {
-        let default_char = self.default_char();
-        let render = |line: &mut HashMap<u32, CharOpts>| -> String {
-            let mut result = String::new();
-            let mut is_wide_char = false;
-            for x in 0..self.columns {
-                if is_wide_char {
-                    is_wide_char = false;
-                    continue;
-                }
-                let char = line.entry(x).or_insert(default_char.clone()).data.clone();
-                is_wide_char = char
-                    .chars()
-                    .next()
-                    .expect("can not read char")
-                    .width()
-                    .is_some_and(|s| s == 2);
-                result.push_str(&char);
-            }
-
-            return result;
-        };
-
-        let mut result = Vec::new();
-        for y in 0..self.lines {
-            let line_render = render(
-                &mut self
-                    .buffer
-                    .entry(y)
-                    .or_insert(HashMap::<u32, CharOpts>::new()),
-            );
-            result.push(line_render);
-        }
-
-        return result;
-    }
-
     /// Resize the screen to the given size.
     ///
     /// If the requested screen size has more lines than the existing
@@ -266,11 +228,48 @@ impl Screen {
         self.set_margins(None, None);
     }
 
+    // Ensure the cursor is within horizontal screen bounds."""
+    pub fn ensure_hbounds(&mut self) {
+        self.cursor.x = u32::min(u32::max(0, self.cursor.x), self.columns - 1)
+    }
+
+    // Ensure the cursor is within vertical screen bounds.
+    pub fn ensure_vbounds(&mut self, use_margins: Option<bool>) {
+        let (top, bottom) = if (use_margins.unwrap_or(false) || self.mode.contains(&DECOM))
+            && self.margins.is_some()
+        {
+            let Margins { top, bottom } = self.margins.unwrap();
+            (top, bottom)
+        } else {
+            (0, self.lines - 1)
+        };
+
+        self.cursor.y = u32::min(u32::max(top, self.cursor.y), bottom)
+    }
+
+    /// Write to the process input.
+    pub fn write_process_input(&self, _input: &str) {
+        // Implementation for writing to the process input.
+    }
+
+    /// Returns an empty character with default foreground and background colors.
+    pub fn default_char(&self) -> CharOpts {
+        CharOpts {
+            data: " ".to_owned(),
+            fg: "default".to_owned(),
+            bg: "default".to_owned(),
+            reverse: self.mode.contains(&DECSCNM),
+            ..CharOpts::default()
+        }
+    }
+}
+
+impl ParserListener for Screen {
     // Select top and bottom margins for the scrolling region.
 
     // :param int top: the smallest line number that is scrolled.
     // :param int bottom: the biggest line number that is scrolled.
-    pub fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {
+    fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {
         // XXX 0 corresponds to the CSI with no parameters.
         if top.or(Some(0)).expect("unexpected top value") == 0 && bottom.is_none() {
             self.margins = None;
@@ -320,43 +319,44 @@ impl Screen {
         }
     }
 
-    // Ensure the cursor is within horizontal screen bounds."""
-    pub fn ensure_hbounds(&mut self) {
-        self.cursor.x = u32::min(u32::max(0, self.cursor.x), self.columns - 1)
-    }
+    ///A list of screen lines as unicode strings.
+    fn display(&mut self) -> Vec<String> {
+        let default_char = self.default_char();
+        let render = |line: &mut HashMap<u32, CharOpts>| -> String {
+            let mut result = String::new();
+            let mut is_wide_char = false;
+            for x in 0..self.columns {
+                if is_wide_char {
+                    is_wide_char = false;
+                    continue;
+                }
+                let char = line.entry(x).or_insert(default_char.clone()).data.clone();
+                is_wide_char = char
+                    .chars()
+                    .next()
+                    .expect("can not read char")
+                    .width()
+                    .is_some_and(|s| s == 2);
+                result.push_str(&char);
+            }
 
-    // Ensure the cursor is within vertical screen bounds.
-    pub fn ensure_vbounds(&mut self, use_margins: Option<bool>) {
-        let (top, bottom) = if (use_margins.unwrap_or(false) || self.mode.contains(&DECOM))
-            && self.margins.is_some()
-        {
-            let Margins { top, bottom } = self.margins.unwrap();
-            (top, bottom)
-        } else {
-            (0, self.lines - 1)
+            return result;
         };
 
-        self.cursor.y = u32::min(u32::max(top, self.cursor.y), bottom)
-    }
-
-    /// Write to the process input.
-    pub fn write_process_input(&self, _input: &str) {
-        // Implementation for writing to the process input.
-    }
-
-    /// Returns an empty character with default foreground and background colors.
-    pub fn default_char(&self) -> CharOpts {
-        CharOpts {
-            data: " ".to_owned(),
-            fg: "default".to_owned(),
-            bg: "default".to_owned(),
-            reverse: self.mode.contains(&DECSCNM),
-            ..CharOpts::default()
+        let mut result = Vec::new();
+        for y in 0..self.lines {
+            let line_render = render(
+                &mut self
+                    .buffer
+                    .entry(y)
+                    .or_insert(HashMap::<u32, CharOpts>::new()),
+            );
+            result.push(line_render);
         }
-    }
-}
 
-impl ParserListener for Screen {
+        return result;
+    }
+
     /// Fills screen with uppercase E's for screen focus and alignment.
     fn alignment_display(&mut self) {
         self.dirty.extend(0..self.lines);
@@ -859,15 +859,12 @@ impl ParserListener for Screen {
     ///
     /// This method accepts any number of positional arguments as some `clear` implementations include a `;` after the first parameter causing the stream to assume a `0` second parameter.
     fn erase_in_display(&mut self, how: Option<u32>, _private: Option<bool>) {
-        dbg!(how, _private);
         let interval: std::ops::Range<u32> = match how {
             Some(0) => self.cursor.y + 1..self.lines,
             Some(1) => 0..self.cursor.y,
             Some(2 | 3) => 0..self.lines,
             _ => 0..0, // Handle invalid `how` values
         };
-
-        dbg!(interval.clone());
 
         self.dirty.extend(interval.clone());
         for y in interval.clone() {
@@ -1096,7 +1093,6 @@ impl ParserListener for Screen {
 
         // When DECOLM mode is set, the screen is erased and the cursor
         // moves to the home position.
-        dbg!(mode_list.clone());
         if mode_list.iter().any(|m| *m == DECCOLM) {
             self.saved_columns = Some(self.columns);
             self.resize(None, Some(132));

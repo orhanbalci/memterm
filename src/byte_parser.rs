@@ -78,15 +78,13 @@ mod test {
 
     use crate::byte_parser::ByteParser;
     use crate::debug_screen::DebugScreen;
+    use crate::parser_listener::ParserListener;
     use crate::screen::Screen;
     #[test]
     fn input_output() {
         // List of test cases
-        // let test_cases = vec!["cat-gpl3", "find-etc", "htop", "ls", "mc", "top", "vi"];
-        // let test_cases = vec!["vi"];
-        //let test_cases = vec!["find-etc"];
-        //let test_cases = vec!["cat-gpl3"];
-        let test_cases = vec!["htop"];
+        let test_cases = vec!["cat-gpl3", "find-etc", "htop", "ls", "mc", "top", "vi"];
+
         // Get path to captured directory relative to this test file
         let captured_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("assets")
@@ -127,6 +125,7 @@ mod test {
     }
 
     #[test]
+    #[ignore = "this is a utility test to debug intermediate commands"]
     fn debug_printer() {
         // List of test cases
         let test_cases = vec!["htop"];

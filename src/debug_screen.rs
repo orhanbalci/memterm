@@ -177,4 +177,12 @@ impl ParserListener for DebugScreen {
     fn set_icon_name(&mut self, icon_name: &str) {
         self.record(format!("[\"set_icon_name\", {:?}]", icon_name));
     }
+
+    fn display(&mut self) -> Vec<String> {
+        vec![]
+    }
+
+    fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>) {
+        self.record(format!("[\"set_margins\", {:?}, {:?}]", top, bottom));
+    }
 }

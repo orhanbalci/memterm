@@ -14,6 +14,7 @@ use crate::control::{
     DCH,
     DECRC,
     DECSC,
+    DECSTBM,
     DL,
     ECH,
     ED,
@@ -86,6 +87,7 @@ pub trait ParserListener {
     fn select_graphic_rendition(&mut self, modes: &[u32]);
     fn set_title(&mut self, title: &str);
     fn set_icon_name(&mut self, icon_name: &str);
+    fn set_margins(&mut self, top: Option<u32>, bottom: Option<u32>);
 
     fn escape_dispatch(&mut self, escape_command: &str) {
         match escape_command {
@@ -237,9 +239,14 @@ pub trait ParserListener {
             ec if ec == SM => self.set_mode(params, is_private),
             ec if ec == RM => self.reset_mode(params, is_private),
             ec if ec == SGR => self.select_graphic_rendition(params),
+            ec if ec == DECSTBM => {
+                self.set_margins(params.iter().cloned().nth(0), params.iter().cloned().nth(1))
+            }
             ec => {
                 println!("unexpected csi escape code {}", ec);
             }
         }
     }
+
+    fn display(&mut self) -> Vec<String>;
 }

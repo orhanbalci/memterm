@@ -51,6 +51,7 @@ pub const TBC: &str = ascii!(6 / 7);
 pub const SM: &str = ascii!(6 / 8);
 pub const RM: &str = ascii!(6 / 12);
 pub const SGR: &str = ascii!(6 / 13);
+pub const DECSTBM: &str = ascii!(7 / 2);
 
 pub const DECALN: &str = ascii!(3 / 8);
 pub const IND: &str = ascii!(4 / 4);

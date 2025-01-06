@@ -1,5 +1,9 @@
 #![allow(clippy::cmp_owned)]
 
+#[cfg(test)]
+use std::fs::OpenOptions;
+#[cfg(test)]
+use std::io::Write;
 use std::sync::{Arc, Mutex};
 
 use generator::{Generator, Gn};
@@ -18,6 +22,8 @@ where
     pub(crate) parser_state: Arc<Mutex<ParserState>>,
     pub(crate) taking_plain_text: bool,
     listener: Arc<Mutex<T>>,
+    #[cfg(test)]
+    log_file: Arc<Mutex<std::fs::File>>, // Add file handle
 }
 
 impl<'a, T> Parser<'a, T>
@@ -25,8 +31,21 @@ where
     T: ParserListener + Send + 'a,
 {
     pub fn new(listener: Arc<Mutex<T>>) -> Self {
+        // Open file in append mode, create if doesn't exist
+        #[cfg(test)]
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open("parser_log.txt")
+            .expect("Failed to open log file");
+
+        #[cfg(test)]
+        let log_file = Arc::new(Mutex::new(file));
+
         let parser_state = Arc::new(Mutex::new(ParserState { use_utf8: true }));
         let parser_state_cloned = parser_state.clone();
+
+        #[cfg(not(test))]
         let mut a = Self {
             listener: listener.clone(),
             taking_plain_text: true,
@@ -149,12 +168,154 @@ where
             parser_state,
         };
 
+        #[cfg(test)]
+        let mut a = Self {
+            listener: listener.clone(),
+            taking_plain_text: true,
+            parser_fsm: Gn::<String>::new_scoped(move |mut co| {
+                loop {
+                    let mut char = co.yield_(Some(true)).unwrap_or_default();
+                    if ESC == char {
+                        char = co.yield_(None).unwrap_or_default();
+                        if char == "[" {
+                            char = CSI.to_owned();
+                        } else if char == "]" {
+                            char = OSC.to_owned();
+                        } else {
+                            if char == "#" {
+                                if co.yield_(None).unwrap_or_default() == DECALN {
+                                    listener.lock().unwrap().alignment_display();
+                                } else {
+                                    println!("unexpected escape character");
+                                }
+                            } else if char == "%" {
+                                // self.select_other_charset(yield_!(None));
+                            } else if "()".contains(&char) {
+                                let _code = co.yield_(None);
+                                if parser_state_cloned.lock().unwrap().use_utf8 {
+                                    continue;
+                                } else {
+                                    // listener.lock().unwrap().define_charset(code, char);
+                                }
+                            } else {
+                                listener.lock().unwrap().escape_dispatch(&char);
+                            }
+                            continue;
+                        }
+                    }
+                    if BASIC.iter().any(|cf| *cf == char) {
+                        if (char == SI || char == SO)
+                            && parser_state_cloned.lock().unwrap().use_utf8
+                        {
+                            continue;
+                        } else {
+                            listener.lock().unwrap().basic_dispatch(&char);
+                        }
+                    } else if char == CSI {
+                        let mut params: Vec<u32> = vec![];
+                        let mut private: bool = false;
+                        let mut current: String = "".to_owned();
+                        loop {
+                            char = co.yield_(None).unwrap_or_default();
+                            if char == "?" {
+                                private = true;
+                            } else if ALLOWED_IN_CSI.iter().any(|cf| *cf == char) {
+                                listener.lock().unwrap().basic_dispatch(&char);
+                            } else if char == SP || char == GREATER {
+                            } else if char == CAN || char == SUB {
+                                listener.lock().unwrap().draw(&char);
+                                break;
+                            } else if char.chars().next().unwrap().is_ascii_digit() {
+                                current.push(char.chars().next().unwrap());
+                            } else if char == "$" {
+                                co.yield_(None);
+                                break;
+                            } else {
+                                let mut current_param = match current.parse::<u64>() {
+                                    Ok(val) => val,
+                                    _ => 0,
+                                };
+                                current_param = u64::min(current_param, 9999);
+                                params.push(current_param as u32);
+                                if char == ";" {
+                                    current = "".to_owned();
+                                } else {
+                                    if private {
+                                        listener.lock().unwrap().csi_dispatch(
+                                            &char,
+                                            &params[..],
+                                            true,
+                                        );
+                                    } else {
+                                        listener.lock().unwrap().csi_dispatch(
+                                            &char,
+                                            &params[..],
+                                            false,
+                                        );
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    } else if char == OSC {
+                        let code = co.yield_(None).unwrap_or_default();
+                        if code == "R" || code == "p" {
+                            continue; // reset palette not implemented
+                        }
+                        let mut param = "".to_owned();
+
+                        'param_loop: loop {
+                            let mut accu = co.yield_(None).unwrap_or_default();
+                            if accu == ESC {
+                                accu.push_str(&co.yield_(None).unwrap_or_default());
+                            }
+
+                            if OSC_TERMINATORS.contains(&accu.as_str()) {
+                                break 'param_loop;
+                            } else {
+                                param.push(accu.chars().next().unwrap());
+                            }
+                        }
+
+                        param = param.chars().skip(1).take(param.len() - 1).collect();
+
+                        if "01".contains(&code) {
+                            listener.lock().unwrap().set_icon_name(&param);
+                        }
+                        if "02".contains(&code) {
+                            listener.lock().unwrap().set_title(&param);
+                        }
+                    }
+                }
+            }),
+            parser_state,
+            log_file: log_file, // Add file handle to struct
+        };
+
         a.parser_fsm.send("".to_owned());
         a
     }
 
     pub fn is_special_start(s: &str) -> bool {
         SPECIAL.iter().any(|special| s.starts_with(special))
+    }
+
+    // New method for writing to log file
+    #[cfg(test)]
+    fn _log_screen_state(&self, screen_state: String) {
+        if let Ok(mut file) = self.log_file.lock() {
+            let log_entry = format!("{}\n{}\n{}\n", "#".repeat(25), screen_state, "#".repeat(25));
+
+            if let Err(e) = writeln!(file, "{}", log_entry) {
+                eprintln!("Failed to write to log file: {}", e);
+            }
+
+            if let Err(e) = file.flush() {
+                eprintln!("Failed to flush log file: {}", e);
+            }
+        } else {
+            eprintln!("Failed to acquire lock on log file");
+        }
     }
 
     pub fn feed(&mut self, data: String) {
@@ -169,6 +330,10 @@ where
             if self.taking_plain_text {
                 // Feed plain text directly to listener
                 self.listener.lock().unwrap().draw(&char_str);
+                // Log the screen state using the new method
+                // if let Ok(display) = self.listener.lock().map(|mut l| l.display()) {
+                //     self.log_screen_state(display.join("\n"));
+                // }
             } else {
                 // Feed to parser FSM and update taking_plain_text state
                 self.taking_plain_text = self.parser_fsm.send(char_str).unwrap_or(false);
@@ -191,6 +356,7 @@ mod test {
     use crate::counter::Counter;
     use crate::debug_screen::DebugScreen;
     use crate::parser::{CSI, FF, HVP, LF, SI, SO, VT};
+    use crate::parser_listener::ParserListener;
     use crate::screen::Screen;
 
     #[test]

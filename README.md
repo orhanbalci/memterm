@@ -1,4 +1,6 @@
 
+<!-- cargo-sync-readme start -->
+
 ![memtermlogo](https://github.com/orhanbalci/memterm/blob/main/assets/memterm.png?raw=true)
 
 **memterm** is a Rust virtual terminal emulator, offering a lightweight and efficient implementation for handling ANSI escape sequences and emulating terminal behavior. Inspired by the Python library [pyte](https://github.com/selectel/pyte), it provides a robust and customizable terminal interface for your Rust applications.
@@ -30,19 +32,66 @@ cargo build
 
 ### Example Usage
 
-```rust
-use std::sync::{Arc, Mutex};
-
-use super::{Parser, ESC, RIS};
-use crate::parser_printer::ParserPrinter;
-
+```rust ignore
 #[test]
-fn first_step() {
-    let listener = Arc::new(Mutex::new(ParserPrinter {}));
-    let mut parser = Parser::new(listener.clone());
-    parser.feed(String::default());
-    parser.feed(ESC.to_owned());
-    parser.feed(RIS.to_owned());
+fn draw() {
+    // DECAWM on (default)
+    let mut screen = Screen::new(3, 3);
+    screen.set_mode(&[LNM], false);
+    assert!(screen.mode.contains(&DECAWM));
+
+    for ch in "abc".chars() {
+        screen.draw(&ch.to_string());
+    }
+
+    assert_eq!(
+        screen.display(),
+        vec!["abc".to_string(), "   ".to_string(), "   ".to_string()]
+    );
+    assert_eq!((screen.cursor.y, screen.cursor.x), (0, 3));
+
+    // One more character -- now we got a linefeed!
+    screen.draw("a");
+    assert_eq!((screen.cursor.y, screen.cursor.x), (1, 1));
+
+    // DECAWM is off
+    let mut screen = Screen::new(3, 3);
+    screen.reset_mode(&[DECAWM], false);
+
+    for ch in "abc".chars() {
+        screen.draw(&ch.to_string());
+    }
+
+    assert_eq!(
+        screen.display(),
+        vec!["abc".to_string(), "   ".to_string(), "   ".to_string()]
+    );
+    assert_eq!((screen.cursor.y, screen.cursor.x), (0, 3));
+
+    // No linefeed is issued on the end of the line ...
+    screen.draw("a");
+    assert_eq!(
+        screen.display(),
+        vec!["aba".to_string(), "   ".to_string(), "   ".to_string()]
+    );
+    assert_eq!((screen.cursor.y, screen.cursor.x), (0, 3));
+
+    // IRM mode is on, expecting new characters to move the old ones
+    // instead of replacing them
+    screen.set_mode(&[IRM], false);
+    screen.cursor_position(None, None);
+    screen.draw("x");
+    assert_eq!(
+        screen.display(),
+        vec!["xab".to_string(), "   ".to_string(), "   ".to_string()]
+    );
+
+    screen.cursor_position(None, None);
+    screen.draw("y");
+    assert_eq!(
+        screen.display(),
+        vec!["yxa".to_string(), "   ".to_string(), "   ".to_string()]
+    );
 }
 ```
 
@@ -57,48 +106,46 @@ fn first_step() {
 3. **Terminal State Management**
    Offers APIs to adjust dimensions and reset or inspect the terminal state.
 
-## Documentation
+<!-- cargo-sync-readme end -->
 
-Detailed documentation is available on [docs.rs](https://docs.rs/memterm).
-To generate local documentation:
+ ## Documentation
 
-```sh
-cargo doc --open
-```
+ Detailed documentation is available on [docs.rs](https://docs.rs/memterm).
+ To generate local documentation:
 
-## Contributing
+ ```sh
+ cargo doc --open
+ ```
 
-Contributions are encouraged! You can:
+ ## Contributing
 
-- Report bugs and request features via [issues](https://github.com/orhanbalci/memterm/issues).
-- Submit pull requests to enhance the library.
+ Contributions are encouraged! You can:
 
-### Development Setup
+ - Report bugs and request features via [issues](https://github.com/orhanbalci/memterm/issues).
+ - Submit pull requests to enhance the library.
 
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/orhanbalci/memterm.git
-   cd memterm
-   ```
+ ### Development Setup
 
-2. Build the crate:
-   ```sh
-   cargo build
-   ```
+ 1. Clone the repository:
+    ```sh
+    git clone https://github.com/orhanbalci/memterm.git
+    cd memterm
+    ```
 
-3. Run tests:
-   ```sh
-   cargo test
-   ```
+ 2. Build the crate:
+    ```sh
+    cargo build
+    ```
 
-## License
+ 3. Run tests:
+    ```sh
+    cargo test
+    ```
 
-**memterm** is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
+ ## License
 
-## Acknowledgments
+ **memterm** is licensed under the MIT License. See the [LICENSE](LICENSE) file for more information.
 
-**memterm** draws inspiration from the Python library [pyte](https://github.com/selectel/pyte) and aims to bring similar functionality to the Rust ecosystem.
+ ## Acknowledgments
 
----
-
-Developed with ❤️ by [orhanbalci](https://github.com/orhanbalci)
+ **memterm** draws inspiration from the Python library [pyte](https://github.com/selectel/pyte) and aims to bring similar functionality to the Rust ecosystem.

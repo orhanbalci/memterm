@@ -1315,7 +1315,7 @@ mod test {
         };
     }
 
-    pub fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
+    pub(crate) fn update(screen: &mut Screen, lines: Vec<&str>, colored: Vec<u32>) {
         for (y, line) in lines.iter().enumerate() {
             for (x, char) in line.chars().enumerate() {
                 let mut attrs = screen.default_char();
@@ -1332,7 +1332,7 @@ mod test {
         }
     }
 
-    pub fn tolist(screen: &Screen) -> Vec<Vec<CharOpts>> {
+    pub(crate) fn tolist(screen: &Screen) -> Vec<Vec<CharOpts>> {
         let mut result = Vec::new();
 
         for y in 0..screen.lines {

@@ -2,8 +2,14 @@
 name = "memterm"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Orhan Balci <orhanbalci@gmail.com>"]
+description = "Inmemory terminal emulator"
+homepage = "https://github.com/orhanbalci"
+repository = "https://github.com/orhanbalci/memterm.git"
+keywords = ["terminal", "emulator", "inmemory", "vt100"]
+categories = ["command-line-interface", "command-line-utilities"]
+license = "MIT"
+readme = "README.md"
 
 [dependencies]
 encoding_rs = "0.8.35"

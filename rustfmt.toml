@@ -4,3 +4,5 @@ imports_layout = "HorizontalVertical"
 struct_lit_width = 50
 struct_variant_width = 50
 format_code_in_doc_comments = true
+blank_lines_upper_bound = 1           # Maximum number of blank lines
+struct_field_align_threshold = 0      # Add a blank line between fields

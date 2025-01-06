@@ -14,14 +14,56 @@ use crate::parser_listener::ParserListener;
 pub struct ParserState {
     pub(crate) use_utf8: bool,
 }
+
+/// A terminal escape sequence parser that processes input characters and dispatches appropriate actions to a listener.
+///
+/// The parser implements a state machine that handles various terminal control sequences including:
+/// - Basic control characters
+/// - ANSI escape sequences (ESC)
+/// - Control Sequence Introducer (CSI) commands
+/// - Operating System Commands (OSC)
+///
+/// # Type Parameters
+///
+/// * `'a` - Lifetime parameter for the generator
+/// * `T` - Type implementing the `ParserListener` trait that receives parsed commands
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::{Arc, Mutex};
+///
+/// use memterm::parser::Parser;
+/// use memterm::screen::Screen;
+///
+/// // Create a screen to handle parsed commands
+/// let screen = Arc::new(Mutex::new(Screen::new(80, 24)));
+///
+/// // Create parser instance
+/// let mut parser = Parser::new(screen.clone());
+///
+/// // Feed some terminal sequences
+/// parser.feed("\x1b[1;1H".to_string()); // Move cursor to 1,1
+/// parser.feed("Hello world!".to_string()); // Print text
+/// ```
 pub struct Parser<'a, T>
 where
     T: ParserListener + Send + 'a,
 {
+    /// State machine generator that processes input characters and manages parsing states
     parser_fsm: Generator<'a, String, Option<bool>>,
+
+    /// Shared configuration state for the parser including charset settings
     pub(crate) parser_state: Arc<Mutex<ParserState>>,
+
+    /// Flag indicating whether the parser is currently processing plain text (true)
+    /// or parsing escape sequences (false)
     pub(crate) taking_plain_text: bool,
+
+    /// The listener that receives and handles parsed terminal commands
     listener: Arc<Mutex<T>>,
+
+    /// File handle for logging parser operations (only available in test builds)
     #[cfg(test)]
     log_file: Arc<Mutex<std::fs::File>>, // Add file handle
 }
@@ -30,6 +72,15 @@ impl<'a, T> Parser<'a, T>
 where
     T: ParserListener + Send + 'a,
 {
+    /// Creates a new Parser instance with the given listener
+    ///
+    /// # Arguments
+    ///
+    /// * `listener` - A thread-safe reference to a type implementing ParserListener
+    ///
+    /// # Returns
+    ///
+    /// A new Parser instance initialized and ready to process input
     pub fn new(listener: Arc<Mutex<T>>) -> Self {
         // Open file in append mode, create if doesn't exist
         #[cfg(test)]
@@ -296,11 +347,28 @@ where
         a
     }
 
+    /// Checks if a string starts with a special terminal sequence character
+    ///
+    /// Special characters include:
+    /// - ESC (escape)
+    /// - CSI (control sequence introducer)
+    /// - OSC (operating system command)
+    /// - Basic control characters (BEL, BS, HT, LF, VT, FF, CR, SO, SI)
+    ///
+    /// The complete set is defined in [`static@crate::control::SPECIAL`]
+    ///
+    /// # Arguments
+    ///
+    /// * `s` - The string to check
+    ///
+    /// # Returns
+    ///
+    /// `true` if the string starts with a special sequence character, `false` otherwise
     pub fn is_special_start(s: &str) -> bool {
         SPECIAL.iter().any(|special| s.starts_with(special))
     }
 
-    // New method for writing to log file
+    /// Logs the current screen state to a file (only available in test builds)
     #[cfg(test)]
     fn _log_screen_state(&self, screen_state: String) {
         if let Ok(mut file) = self.log_file.lock() {
@@ -318,6 +386,15 @@ where
         }
     }
 
+    /// Processes input text, handling both plain text and terminal sequences
+    ///
+    /// This method feeds characters one at a time through the parser state machine.
+    /// Plain text is sent directly to the listener while special sequences are
+    /// processed according to terminal protocols.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - String containing text and/or terminal sequences to process
     pub fn feed(&mut self, data: String) {
         for c in data.chars() {
             let char_str = c.to_string();
@@ -341,6 +418,11 @@ where
         }
     }
 
+    /// Configures whether the parser should use UTF-8 encoding
+    ///
+    /// # Arguments
+    ///
+    /// * `use_utf8` - `true` to enable UTF-8 mode, `false` to disable
     pub fn set_use_utf8(&mut self, use_utf8: bool) {
         self.parser_state.lock().unwrap().use_utf8 = use_utf8;
     }
